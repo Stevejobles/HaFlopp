@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>HighStakes - Rules</title>
+  <style>
+    body {
+      font-family: system-ui;
+      background: #1A6F40;
+      color: white;
+      user-select: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .header .title {
+      font-size: 36px;
+      margin-bottom: 10px;
+    }
+
+    .back-button {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      padding: 10px 20px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .back-button:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .back-button:active {
+      background: rgba(255, 255, 255, 0.4);
+    }
+
+    .content {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    h2 {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      padding-bottom: 10px;
+      margin-top: 30px;
+    }
+
+    p {
+      line-height: 1.6;
+    }
+
+    ul, ol {
+      margin-bottom: 20px;
+    }
+
+    li {
+      margin-bottom: 10px;
+    }
+
+    .hand-rankings {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 40px;  /* Increased margin to create more space */
+      margin-bottom: 40px; /* Added bottom margin too */
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+    }
+
+    .hand-image {
+      width: 100%;
+      max-width: 650px;
+      margin: 20px 0;
+      text-align: center;
+    }
+
+    .hand-image img {
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .rules-section {
+      margin-bottom: 40px; /* Increased from 30px to 40px for more separation */
+      background: rgba(0, 0, 0, 0.2);
+      padding: 20px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="back-button" onclick="window.location.href='index.html'">← Back</div>
+
+  <div class="header">
+    <div class="title">How to Play Poker</div>
+    <div class="subtitle">Basic Rules & Hand Rankings</div>
+  </div>
+
+  <div class="content">
+    <div class="rules-section">
+      <h2>Basic Rules of Texas Hold'em</h2>
+      <p>Texas Hold'em is the most popular poker variant. Here's how to play:</p>
+      
+      <ul>
+        <li><strong>The Blinds:</strong> The game begins with two players posting the "blinds" - forced bets that start the betting.</li>
+        <li><strong>The Deal:</strong> Each player receives two private cards (known as "hole cards").</li>
+        <li><strong>First Betting Round:</strong> Starting with the player after the big blind, each player can call, raise, or fold.</li>
+        <li><strong>The Flop:</strong> Three community cards are dealt face up.</li>
+        <li><strong>Second Betting Round:</strong> Another round of betting occurs.</li>
+        <li><strong>The Turn:</strong> A fourth community card is dealt.</li>
+        <li><strong>Third Betting Round:</strong> Another round of betting.</li>
+        <li><strong>The River:</strong> The fifth and final community card is dealt.</li>
+        <li><strong>Final Betting Round:</strong> The last betting round.</li>
+        <li><strong>The Showdown:</strong> If more than one player remains, cards are shown and the best five-card hand wins.</li>
+      </ul>
+      
+      <p>Players make the best five-card hand possible using any combination of their two hole cards and the five community cards.</p>
+    </div>
+
+    <div class="rules-section">
+      <h2>The Button and Blinds</h2>
+      <p>The dealer position and blinds are fundamental to poker structure:</p>
+      
+      <ul>
+        <li><strong>The Button:</strong> A disk that marks the theoretical dealer position. The button rotates clockwise after each hand. The player on the button acts last in all post-flop betting rounds, giving them a strategic advantage.</li>
+        <li><strong>Small Blind:</strong> The player to the immediate left of the button must post the small blind, usually half the minimum bet. This is a forced bet that must be made before receiving any cards.</li>
+        <li><strong>Big Blind:</strong> The player to the left of the small blind must post the big blind, equal to the minimum bet. Like the small blind, this is a forced bet made before seeing any cards.</li>
+      </ul>
+      
+      <p>After each hand, the button moves one position clockwise, and the blinds follow accordingly. This ensures that the advantage of position rotates fairly among all players.</p>
+    </div>
+
+    <div class="hand-rankings">
+      <h2>Hand Rankings</h2>
+      <p>In poker, hands are ranked from highest to lowest as shown in the image below:</p>
+      
+      <div class="hand-image">
+        <img src="images/Hand-Rankings-Upswing-Poker.jpg" alt="Poker Hand Rankings">
+      </div>
+      
+      <!-- Removed the text list since the image provides all the information -->
+    </div>
+
+    <div class="rules-section">
+      <h2>Betting Rules</h2>
+      <p>When it's your turn to act, you have several options:</p>
+      
+      <ul>
+        <li><strong>Check:</strong> Pass the action to the next player (only if no bet has been made)</li>
+        <li><strong>Bet/Raise:</strong> Place a bet or increase the current bet</li>
+        <li><strong>Call:</strong> Match the current bet to stay in the hand</li>
+        <li><strong>Fold:</strong> Discard your hand and forfeit any chance at the pot</li>
+      </ul>
+      
+      <p>The betting continues clockwise around the table until all players have either called the current bet or folded.</p>
+    </div>
+
+    <div class="rules-section">
+      <h2>Tips for Beginners</h2>
+      <ul>
+        <li>Start with low stakes games until you're comfortable with the rules</li>
+        <li>Pay attention to your position at the table - playing late positions is advantageous</li>
+        <li>Be selective about which starting hands you play</li>
+        <li>Watch for betting patterns from your opponents</li>
+        <li>Practice good bankroll management - never play with money you can't afford to lose</li>
+        <li>Learn to calculate pot odds to make mathematically correct decisions</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // JavaScript for handling the back button
+    document.querySelector('.back-button').addEventListener('click', function() {
+      window.location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>

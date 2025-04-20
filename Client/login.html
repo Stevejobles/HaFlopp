@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Haflop - Login</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .password-container {
+      position: relative;
+    }
+    
+    .password-toggle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      user-select: none;
+      color: #666;
+      font-size: 18px;
+    }
+    
+    .password-toggle:hover {
+      color: #333;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="back-button button" onclick="window.location.href='index.html'">← Back</div>
+
+  <div class="header">
+    <div class="title">Haflop</div>
+    
+    <div class="form-container">
+      <div class="form-title">Log In</div>
+      
+      <form id="login-form">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required>
+          <div class="error-message" id="username-error"></div>
+        </div>
+        
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="password-container">
+            <input type="password" id="password" name="password" required>
+            <span class="password-toggle" id="password-toggle">👁️</span>
+          </div>
+          <div class="error-message" id="password-error"></div>
+          <div style="text-align: right; margin-top: 5px;">
+            <a href="forgot-password.html" style="color: #ff5252; text-decoration: none; font-size: 14px;">Forgot Password?</a>
+          </div>
+        </div>
+        
+        <div class="form-group" style="display: flex; align-items: center;">
+          <input type="checkbox" id="remember-me" name="remember-me" style="width: auto; margin-right: 10px;">
+          <label for="remember-me" style="margin-bottom: 0;">Remember me for 2 weeks</label>
+        </div>
+        
+        <button type="submit" class="submit-btn button">Log In</button>
+        
+        <div class="form-footer">
+          Don't have an account? <a href="signup.html">Sign up</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Password visibility toggle functionality
+    document.getElementById('password-toggle').addEventListener('click', function() {
+      const passwordInput = document.getElementById('password');
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        this.textContent = '👁️‍🗨️';
+      } else {
+        passwordInput.type = 'password';
+        this.textContent = '👁️';
+      }
+    });
+    
+    document.getElementById('login-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            username, 
+            password, 
+            rememberMe: document.getElementById('remember-me').checked 
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          // Successfully logged in
+          localStorage.setItem('user', JSON.stringify(data.user));
+          window.location.href = 'index.html';
+        } else {
+          // Show error message
+          const errorElem = document.getElementById('password-error');
+          errorElem.textContent = data.message || 'Invalid username or password';
+          errorElem.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        const errorElem = document.getElementById('password-error');
+        errorElem.textContent = 'An error occurred. Please try again later.';
+        errorElem.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
