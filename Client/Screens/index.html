@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Haflop</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+
+<body>
+  <div class="logs">
+    <div class="sign-in button">Sign-up</div>
+    <div class="login button">Log-in</div>
+  </div>
+  
+  <div class="user-info">
+    <span class="username"></span>
+    (<span class="chips"></span> chips)
+    <button class="logout-btn button">Logout</button>
+  </div>
+
+  <div class="header">
+    <div class="title">Haflop</div>
+
+    <div class="buttons">
+      <div class="create-lobby button">Create lobby</div>
+      <div class="join-game button">Join game</div>
+      <div class="learn button">Learn to play</div>
+    </div>
+  </div>
+
+  <script src="../pokerSolver.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Get references to all buttons
+      const createLobbyBtn = document.querySelector('.create-lobby');
+      const joinGameBtn = document.querySelector('.join-game');
+      const learnBtn = document.querySelector('.learn');
+      const signInBtn = document.querySelector('.sign-in');
+      const loginBtn = document.querySelector('.login');
+      const logoutBtn = document.querySelector('.logout-btn');
+      const userInfoElement = document.querySelector('.user-info');
+      const usernameElement = document.querySelector('.user-info .username');
+      const chipsElement = document.querySelector('.user-info .chips');
+      const logsElement = document.querySelector('.logs');
+      
+      // Check if user is logged in
+      const checkAuth = async () => {
+        try {
+          const response = await fetch('/api/user');
+          
+          if (response.ok) {
+            const data = await response.json();
+            // User is logged in
+            usernameElement.textContent = data.user.username;
+            chipsElement.textContent = data.user.chips;
+            userInfoElement.style.display = 'block';
+            logsElement.style.display = 'none';
+          } else {
+            // User is not logged in
+            userInfoElement.style.display = 'none';
+            logsElement.style.display = 'flex';
+          }
+        } catch (error) {
+          console.error('Auth check error:', error);
+          userInfoElement.style.display = 'none';
+          logsElement.style.display = 'flex';
+        }
+      };
+      
+      // Check authentication status when the page loads
+      checkAuth();
+      
+      // Add click event listeners
+      createLobbyBtn.addEventListener('click', function() {
+        window.location.href = 'create-lobby.html';
+      });
+      
+      joinGameBtn.addEventListener('click', function() {
+        window.location.href = 'join-game.html';
+      });
+      
+      learnBtn.addEventListener('click', function() {
+        window.location.href = 'learn2play.html';
+      });
+      
+      signInBtn.addEventListener('click', function() {
+        window.location.href = 'signup.html';
+      });
+      
+      loginBtn.addEventListener('click', function() {
+        window.location.href = 'login.html';
+      });
+      
+      logoutBtn.addEventListener('click', async function() {
+        try {
+          await fetch('/api/logout', { method: 'POST' });
+          userInfoElement.style.display = 'none';
+          logsElement.style.display = 'flex';
+        } catch (error) {
+          console.error('Logout error:', error);
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>

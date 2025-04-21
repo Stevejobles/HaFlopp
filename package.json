@@ -1,0 +1,30 @@
+{
+  "name": "haflopp",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/Stevejobles/HaFlopp#readme",
+  "bugs": {
+    "url": "https://github.com/Stevejobles/HaFlopp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Stevejobles/HaFlopp.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.1.0",
+    "express-session": "^1.18.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.15.0",
+    "nodemailer": "^6.10.1",
+    "path": "^0.12.7"
+  }
+}
