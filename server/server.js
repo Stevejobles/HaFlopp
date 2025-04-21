@@ -11,7 +11,7 @@ const port = 3000;
 
 // MongoDB Connection
 let db;
-const uri = "mongodb+srv://yahavy2007:WFGMLeoRy7wnudZ0@cluster0.yphe4.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const uri = process.env.MONGODB_URI;
 const client = new MongoClient(uri);
 
 async function connectToDatabase() {
@@ -33,7 +33,7 @@ async function connectToDatabase() {
 }
 
 // JWT secret key
-const JWT_SECRET = 'haflop-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Middleware
 app.use(express.json());
@@ -270,27 +270,45 @@ app.get('/api/user', async (req, res) => {
   }
 });
 
+
 // Route to serve the main page
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'Client', 'index.html'));
+  res.sendFile(path.join(__dirname, 'Client', 'Screens', 'index.html'));
 });
 
 // Serve other HTML pages
 app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'Client', 'login.html'));
+  res.sendFile(path.join(__dirname, 'Client', 'Screens', 'login.html'));
 });
 
 app.get('/signup', (req, res) => {
-  res.sendFile(path.join(__dirname, 'Client', 'signup.html'));
+  res.sendFile(path.join(__dirname, 'Client', 'Screens', 'signup.html'));
 });
 
 app.get('/learn2play', (req, res) => {
-  res.sendFile(path.join(__dirname, 'Client', 'learn2play.html'));
+  res.sendFile(path.join(__dirname, 'Client', 'Screens', 'learn2play.html'));
+});
+
+app.get('/forgot-password', (req, res) => {
+  res.sendFile(path.join(__dirname, 'Client', 'Screens', 'forgot-password.html'));
+});
+
+app.get('/reset-password', (req, res) => {
+  res.sendFile(path.join(__dirname, 'Client', 'Screens', 'reset-password.html'));
+});
+
+// Protected routes example
+app.get('/create-lobby', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'Client', 'Screens', 'create-lobby.html'));
+});
+
+app.get('/join-game', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'Client', 'Screens', 'join-game.html'));
 });
 
 // Catch-all route to handle page refreshes with client-side routing
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'Client', 'index.html'));
+  res.sendFile(path.join(__dirname, 'Client', 'Screens', 'index.html'));
 });
 
 // Start the server
