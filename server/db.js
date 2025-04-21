@@ -3,7 +3,7 @@
 const { MongoClient } = require("mongodb");
 
 async function run() {
-  const uri = "mongodb+srv://yahavy2007:<db_password>@cluster0.yphe4.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+  const uri = process.env.MONGODB_URI;
 
   // The MongoClient is the object that references the connection to our
   // datastore (Atlas, for example)
@@ -12,7 +12,7 @@ async function run() {
   // Provide the name of the database and collection you want to use.
   // If the database and/or collection do not exist, the driver and Atlas
   // will create them automatically when you first write data.
-  const dbName = "poker";
+  const dbName = "HaFlop";
   const collectionName = "users";
 
   // Create references to the database and collection in order to run
