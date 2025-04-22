@@ -86,6 +86,66 @@ function requireAuth(req, res, next) {
   res.status(401).json({ message: 'Authentication required' });
 }
 
+// Authentication redirect middleware - add this after other middleware but before routes
+app.use((req, res, next) => {
+  // Paths that don't require authentication
+  const publicPaths = [
+    '/login.html', 
+    '/signup.html', 
+    '/forgot-password.html', 
+    '/reset-password.html',
+    '/api/login', 
+    '/api/signup', 
+    '/api/forgot-password', 
+    '/api/reset-password'
+  ];
+  
+  // Check if the path is a public asset (CSS, JS, images)
+  const isPublicAsset = req.path.match(/\.(css|js|jpg|jpeg|png|gif|svg)$/i);
+  
+  // Skip authentication for API endpoints and public paths
+  if (publicPaths.some(path => req.path.includes(path)) || isPublicAsset) {
+    return next();
+  }
+  
+  // Check if user is authenticated
+  if (req.session.userId) {
+    // User is logged in, continue to the requested page
+    return next();
+  } else {
+    // Check for authentication cookie
+    const token = req.cookies.rememberToken;
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.session.userId = decoded.userId;
+        return next();
+      } catch (error) {
+        console.error('Token verification error:', error);
+        res.clearCookie('rememberToken');
+      }
+    }
+    
+    // If it's an API request, return 401 Unauthorized
+    if (req.path.startsWith('/api/')) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    // Otherwise redirect to login page
+    return res.redirect('/login.html');
+  }
+});
+
+// Modify this route to redirect to login
+app.get('/', (req, res) => {
+  if (!req.session.userId && !req.cookies.rememberToken) {
+    return res.redirect('/login.html');
+  }
+  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'index.html'));
+});
+
+// Your other routes remain the same...
+
 // Serve static files from the Client directory
 app.use(express.static(path.join(__dirname, '..', 'Client')));
 
@@ -462,25 +522,47 @@ app.post('/api/lobbies/:id/start', requireAuth, async (req, res) => {
   }
 });
 
-// Route to serve the main page
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'index.html'));
-});
-
-// Serve other HTML pages
+// Route to serve the login page
 app.get('/login', (req, res) => {
+  // If already logged in, redirect to home
+  if (req.session.userId) {
+    return res.redirect('/');
+  }
   res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'login.html'));
 });
 
+// Login page is also available at /login.html
+app.get('/login.html', (req, res) => {
+  // If already logged in, redirect to home
+  if (req.session.userId) {
+    return res.redirect('/');
+  }
+  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'login.html'));
+});
+
+// Route to serve the signup page
 app.get('/signup', (req, res) => {
+  // If already logged in, redirect to home
+  if (req.session.userId) {
+    return res.redirect('/');
+  }
   res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'signup.html'));
 });
 
-app.get('/learn2play', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'learn2play.html'));
+app.get('/signup.html', (req, res) => {
+  // If already logged in, redirect to home
+  if (req.session.userId) {
+    return res.redirect('/');
+  }
+  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'signup.html'));
 });
 
+// Other public pages
 app.get('/forgot-password', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'forgot-password.html'));
+});
+
+app.get('/forgot-password.html', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'forgot-password.html'));
 });
 
@@ -488,22 +570,20 @@ app.get('/reset-password', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'reset-password.html'));
 });
 
-// Protected routes
-app.get('/create-lobby', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'create-lobby.html'));
+app.get('/reset-password.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'reset-password.html'));
 });
 
-app.get('/join-game', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'join-game.html'));
-});
-
-// Game routes
-app.get('/poker', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'poker', 'poker.html'));
-});
+// Protected routes - all of these already have the requireAuth middleware
+// so they'll redirect to login if user isn't authenticated
 
 // Catch-all route to handle page refreshes with client-side routing
+// This will also catch any undefined routes and redirect to login if not authenticated
 app.get('*', (req, res) => {
+  if (!req.session.userId && !req.cookies.rememberToken) {
+    return res.redirect('/login.html');
+  }
+  // For all other routes, serve the main app
   res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'index.html'));
 });
 
