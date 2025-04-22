@@ -51,7 +51,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'haflop-secret-key-should-be-enviro
 const sessionMiddleware = session({
   secret: 'haflop-poker-secret-key',
   resave: false,
-  saveUninitialized: false,
+  saveUninitialized: true, // Changed to true to ensure session is always created
   cookie: { 
     secure: process.env.NODE_ENV === 'production', // Set to true if using HTTPS
     maxAge: 1000 * 60 * 60 * 24 // 24 hours
@@ -86,7 +86,6 @@ function requireAuth(req, res, next) {
   res.status(401).json({ message: 'Authentication required' });
 }
 
-// Authentication redirect middleware - add this after other middleware but before routes
 app.use((req, res, next) => {
   // Paths that don't require authentication
   const publicPaths = [
@@ -148,6 +147,8 @@ app.get('/', (req, res) => {
 
 // Serve static files from the Client directory
 app.use(express.static(path.join(__dirname, '..', 'Client')));
+// Serve files from the Screens directory
+app.use('/Screens', express.static(path.join(__dirname, '..', 'Client', 'Screens')));
 
 // User Registration (Signup) API
 app.post('/api/signup', async (req, res) => {
@@ -260,14 +261,19 @@ app.post('/api/login', async (req, res) => {
     }
     
     // Set session
-    req.session.userId = user._id;
-    console.log("User logged in:", username);
+    req.session.userId = user._id.toString(); // Convert to string to ensure consistent format
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+      }
+    });
+    console.log("User logged in:", username, "Session ID:", req.session.id);
     
     // If remember me is checked, set a persistent cookie
     if (rememberMe) {
       // Create a JWT token with user ID
       const token = jwt.sign(
-        { userId: user._id },
+        { userId: user._id.toString() },
         JWT_SECRET,
         { expiresIn: '14d' } // Token expires after 14 days
       );
@@ -297,7 +303,6 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ message: 'An error occurred during login' });
   }
 });
-
 // Logout API
 app.post('/api/logout', (req, res) => {
   // Clear the session
@@ -572,6 +577,30 @@ app.get('/reset-password', (req, res) => {
 
 app.get('/reset-password.html', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'reset-password.html'));
+});
+
+// Special handling for Screens paths
+app.get('/Screens/:page', (req, res) => {
+  const page = req.params.page;
+  
+  // Check if user is authenticated for protected pages
+  if (!req.session.userId && !req.cookies.rememberToken && 
+      !['login.html', 'signup.html', 'forgot-password.html', 'reset-password.html'].includes(page)) {
+    return res.redirect('/login.html');
+  }
+  
+  // Serve the requested page
+  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', page));
+});
+
+// Catch-all route to handle page refreshes with client-side routing
+// This will also catch any undefined routes and redirect to login if not authenticated
+app.get('*', (req, res) => {
+  if (!req.session.userId && !req.cookies.rememberToken) {
+    return res.redirect('/login.html');
+  }
+  // For all other routes, serve the main app
+  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'index.html'));
 });
 
 // Protected routes - all of these already have the requireAuth middleware
