@@ -625,26 +625,11 @@ async function startServer() {
   const SocketManager = require('./socketManager');
   const socketManager = SocketManager.getInstance(server, sessionMiddleware, db);
   
-  // Start HTTP server (this is the only place .listen() should be called)
+  // Start HTTP server
   server.listen(port, () => {
     console.log(`Poker server running at http://localhost:${port}`);
   });
 }
-
-// This block is no longer necessary, because startServer() already handles it
-// For platforms like Render, make sure startServer() is called
-if (process.env.NODE_ENV === 'production') {
-  startServer().catch(err => {
-    console.error('Error starting server:', err);
-    process.exit(1);
-  });
-} else {
-  startServer().catch(err => {
-    console.error('Error starting server:', err);
-    process.exit(1);
-  });
-}
-
 
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
