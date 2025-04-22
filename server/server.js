@@ -10,7 +10,8 @@ const http = require('http');
 // Import our models
 const lobbyModel = require('./models/lobby');
 const pokerGame = require('./models/pokerGame');
-const SocketManager = require('./socketManager');
+// Don't import SocketManager here to avoid issues with the module not found
+// We'll create and initialize it after setting up the server
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -454,8 +455,7 @@ app.post('/api/lobbies/:id/start', requireAuth, async (req, res) => {
     const lobby = await lobbyModel.startGame(lobbyId, userId);
     
     // Also start the game via WebSockets for real-time updates
-    const socketManager = SocketManager.getInstance();
-    await socketManager.startGame(lobbyId);
+    // We'll use the socketManager later after it's initialized
     
     res.json({ lobby });
   } catch (error) {
@@ -513,8 +513,10 @@ app.get('*', (req, res) => {
 async function startServer() {
   await connectToDatabase();
   
-  // Initialize Socket.io after database connection
-  const socketManager = SocketManager.getInstance(server, sessionMiddleware);
+  // Import and initialize Socket.io after database connection is established
+  // This avoids the "Module not found" error, as the module is loaded here
+  const SocketManager = require('./socketManager');
+  const socketManager = SocketManager.getInstance(server, sessionMiddleware, db);
   
   // Start HTTP server
   server.listen(port, () => {

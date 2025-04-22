@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Haflop - Join Game</title>
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      margin-bottom: 20px;
+    }
+    
+    .tab-button {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: white;
+      padding: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.3s;
+    }
+    
+    .tab-button.active {
+      opacity: 1;
+      font-weight: bold;
+      border-bottom: 2px solid rgba(255, 0, 0, 0.6);
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .pin-input {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    
+    .pin-digit {
+      width: 40px;
+      height: 50px;
+      text-align: center;
+      font-size: 24px;
+      background-color: rgba(255, 255, 255, 0.9);
+      border: 2px solid rgba(255, 0, 0, 0.3);
+      border-radius: 5px;
+      margin: 0 5px;
+    }
+    
+    .pin-digit:focus {
+      border-color: rgba(255, 0, 0, 0.8);
+      outline: none;
+    }
+    
+    .lobbies-list {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+    }
+    
+    .lobby-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    .lobby-item:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .lobby-info {
+      flex: 1;
+    }
+    
+    .lobby-name {
+      font-weight: bold;
+      font-size: 18px;
+      margin-bottom: 5px;
+    }
+    
+    .lobby-details {
+      font-size: 14px;
+      opacity: 0.8;
+    }
+    
+    .lobby-join-btn {
+      background: rgba(255, 0, 0, 0.4);
+      border: none;
+      color: white;
+      padding: 8px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    
+    .lobby-join-btn:hover {
+      background: rgba(255, 0, 0, 0.6);
+    }
+    
+    .no-lobbies {
+      text-align: center;
+      padding: 20px;
+      opacity: 0.7;
+    }
+    
+    /* Lobby View Styles */
+    .lobby-view {
+      display: none;
+    }
+    
+    .join-lobby-view {
+      display: block;
+    }
+    
+    .pin-display {
+      font-size: 32px;
+      font-weight: bold;
+      text-align: center;
+      margin: 20px 0;
+      letter-spacing: 5px;
+    }
+    
+    .players-list {
+      margin-top: 20px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .player-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+      margin-bottom: 5px;
+    }
+    
+    .player-name {
+      font-weight: bold;
+    }
+    
+    .player-status {
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 10px;
+    }
+    
+    .status-creator {
+      background: rgba(255, 215, 0, 0.3);
+    }
+    
+    .status-ready {
+      background: rgba(0, 255, 0, 0.3);
+    }
+    
+    .status-not-ready {
+      background: rgba(255, 0, 0, 0.3);
+    }
+    
+    .game-controls {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+    }
+    
+    .refresh-button {
+      display: block;
+      margin: 10px auto;
+      background: rgba(0, 100, 255, 0.4);
+      border: none;
+      color: white;
+      padding: 8px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    
+    .refresh-button:hover {
+      background: rgba(0, 100, 255, 0.6);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="back-button button" onclick="window.location.href='index.html'">← Back</div>
+
+  <div class="header">
+    <div class="title">Haflop</div>
+    
+    <div class="form-container">
+      <!-- Join Game View -->
+      <div id="join-lobby-view" class="join-lobby-view">
+        <div class="form-title">Join a Game</div>
+        
+        <div class="tabs">
+          <button class="tab-button active" data-tab="pin-tab">Enter PIN</button>
+          <button class="tab-button" data-tab="browse-tab">Browse Lobbies</button>
+        </div>
+        
+        <!-- PIN Tab -->
+        <div id="pin-tab" class="tab-content active">
+          <p>Enter the 6-digit lobby PIN:</p>
+          
+          <div class="pin-input">
+            <input type="text" class="pin-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+            <input type="text" class="pin-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+            <input type="text" class="pin-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+            <input type="text" class="pin-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+            <input type="text" class="pin-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+            <input type="text" class="pin-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+          </div>
+          
+          <div class="error-message" id="pin-error" style="display: none;"></div>
+          
+          <button class="submit-btn button" id="join-pin-btn">Join Game</button>
+        </div>
+        
+        <!-- Browse Tab -->
+        <div id="browse-tab" class="tab-content">
+          <div id="lobbies-list" class="lobbies-list">
+            <!-- Lobbies will be dynamically added here -->
+            <div class="no-lobbies">Loading lobbies...</div>
+          </div>
+          
+          <button class="refresh-button" id="refresh-lobbies">Refresh List</button>
+        </div>
+      </div>
+      
+      <!-- Lobby View -->
+      <div id="lobby-view" class="lobby-view">
+        <div class="form-title" id="lobby-title">Lobby Name</div>
+        
+        <div>
+          <p>Lobby PIN:</p>
+          <div class="pin-display" id="lobby-pin">------</div>
+        </div>
+        
+        <div class="players-list" id="players-list">
+          <!-- Players will be dynamically added here -->
+        </div>
+        
+        <div class="game-controls">
+          <button class="button" id="ready-btn">I'm Ready</button>
+          <button class="button" id="leave-lobby">Leave Lobby</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // DOM Elements
+    const joinLobbyView = document.getElementById('join-lobby-view');
+    const lobbyView = document.getElementById('lobby-view');
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    const pinDigits = document.querySelectorAll('.pin-digit');
+    const pinError = document.getElementById('pin-error');
+    const joinPinBtn = document.getElementById('join-pin-btn');
+    const lobbiesListContainer = document.getElementById('lobbies-list');
+    const refreshLobbiesBtn = document.getElementById('refresh-lobbies');
+    const lobbyTitle = document.getElementById('lobby-title');
+    const lobbyPinDisplay = document.getElementById('lobby-pin');
+    const playersListContainer = document.getElementById('players-list');
+    const readyBtn = document.getElementById('ready-btn');
+    const leaveLobbyBtn = document.getElementById('leave-lobby');
+    
+    // Variables
+    let currentLobby = null;
+    let currentUserId = null;
+    let isReady = false;
+    let pollInterval = null;
+    
+    // Check authentication first
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/user');
+        
+        if (response.ok) {
+          const data = await response.json();
+          currentUserId = data.user.id;
+          return true;
+        } else {
+          // Redirect to login if not authenticated
+          window.location.href = 'login.html';
+          return false;
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        window.location.href = 'login.html';
+        return false;
+      }
+    }
+    
+    // Initialize the page
+    async function init() {
+      const isAuthenticated = await checkAuth();
+      if (!isAuthenticated) return;
+      
+      // Check if there's a PIN in the URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const pin = urlParams.get('pin');
+      
+      if (pin && pin.length === 6) {
+        // Fill in the PIN digits
+        for (let i = 0; i < 6; i++) {
+          pinDigits[i].value = pin.charAt(i);
+        }
+        
+        // Try to join the lobby
+        await joinLobbyByPin();
+      } else {
+        // Set up tab switching
+        tabButtons.forEach(button => {
+          button.addEventListener('click', () => {
+            const tabName = button.getAttribute('data-tab');
+            switchTab(tabName);
+          });
+        });
+        
+        // Set up PIN input behavior
+        pinDigits.forEach((input, index) => {
+          input.addEventListener('keyup', (e) => {
+            // Allow backspace to go to previous input
+            if (e.key === 'Backspace' && input.value === '' && index > 0) {
+              pinDigits[index - 1].focus();
+              return;
+            }
+            
+            // Move to next input when a digit is entered
+            if (input.value.length === 1 && index < pinDigits.length - 1) {
+              pinDigits[index + 1].focus();
+            }
+            
+            // Ensure only digits are entered
+            if (!/^\d*$/.test(input.value)) {
+              input.value = input.value.replace(/\D/g, '');
+            }
+            
+            // Try to join if all digits are filled
+            if (index === pinDigits.length - 1 && getAllPinDigits().length === 6) {
+              joinLobbyByPin();
+            }
+          });
+          
+          input.addEventListener('keydown', (e) => {
+            // Navigate between inputs with arrow keys
+            if (e.key === 'ArrowLeft' && index > 0) {
+              e.preventDefault();
+              pinDigits[index - 1].focus();
+            } else if (e.key === 'ArrowRight' && index < pinDigits.length - 1) {
+              e.preventDefault();
+              pinDigits[index + 1].focus();
+            }
+          });
+        });
+        
+        // Set up join button
+        joinPinBtn.addEventListener('click', joinLobbyByPin);
+        
+        // Set up refresh button
+        refreshLobbiesBtn.addEventListener('click', loadLobbies);
+        
+        // Initial load of lobbies
+        loadLobbies();
+      }
+      
+      // Set up ready button
+      readyBtn.addEventListener('click', toggleReady);
+      
+      // Set up leave lobby button
+      leaveLobbyBtn.addEventListener('click', leaveLobby);
+    }
+    
+    function switchTab(tabName) {
+      // Update button states
+      tabButtons.forEach(button => {
+        if (button.getAttribute('data-tab') === tabName) {
+          button.classList.add('active');
+        } else {
+          button.classList.remove('active');
+        }
+      });
+      
+      // Update content visibility
+      tabContents.forEach(content => {
+        if (content.id === tabName) {
+          content.classList.add('active');
+        } else {
+          content.classList.remove('active');
+        }
+      });
+      
+      // If switching to browse tab, load lobbies
+      if (tabName === 'browse-tab') {
+        loadLobbies();
+      }
+    }
+    
+    function getAllPinDigits() {
+      return Array.from(pinDigits).map(input => input.value).join('');
+    }
+    
+    async function joinLobbyByPin() {
+      const pin = getAllPinDigits();
+      
+      if (pin.length !== 6) {
+        pinError.textContent = 'Please enter all 6 digits';
+        pinError.style.display = 'block';
+        return;
+      }
+      
+      try {
+        // Find the lobby by PIN
+        const response = await fetch(`/api/lobbies/pin/${pin}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Try to join the lobby
+          await joinLobby(data.lobby._id);
+        } else {
+          const data = await response.json();
+          pinError.textContent = data.message || 'Lobby not found';
+          pinError.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Join by PIN error:', error);
+        pinError.textContent = 'An error occurred. Please try again later.';
+        pinError.style.display = 'block';
+      }
+    }
+    
+    async function loadLobbies() {
+      try {
+        const response = await fetch('/api/lobbies');
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.lobbies.length === 0) {
+            lobbiesListContainer.innerHTML = '<div class="no-lobbies">No active lobbies found</div>';
+            return;
+          }
+          
+          lobbiesListContainer.innerHTML = '';
+          
+          data.lobbies.forEach(lobby => {
+            const lobbyItem = document.createElement('div');
+            lobbyItem.className = 'lobby-item';
+            
+            const lobbyInfo = document.createElement('div');
+            lobbyInfo.className = 'lobby-info';
+            
+            const lobbyName = document.createElement('div');
+            lobbyName.className = 'lobby-name';
+            lobbyName.textContent = lobby.name;
+            
+            const lobbyDetails = document.createElement('div');
+            lobbyDetails.className = 'lobby-details';
+            lobbyDetails.textContent = `Players: ${lobby.players.length}/${lobby.maxPlayers} • PIN: ${lobby.pin} • Creator: ${lobby.creatorName}`;
+            
+            const joinBtn = document.createElement('button');
+            joinBtn.className = 'lobby-join-btn';
+            joinBtn.textContent = 'Join';
+            joinBtn.addEventListener('click', () => joinLobby(lobby._id));
+            
+            lobbyInfo.appendChild(lobbyName);
+            lobbyInfo.appendChild(lobbyDetails);
+            lobbyItem.appendChild(lobbyInfo);
+            lobbyItem.appendChild(joinBtn);
+            
+            lobbiesListContainer.appendChild(lobbyItem);
+          });
+        } else {
+          lobbiesListContainer.innerHTML = '<div class="no-lobbies">Failed to load lobbies</div>';
+        }
+      } catch (error) {
+        console.error('Load lobbies error:', error);
+        lobbiesListContainer.innerHTML = '<div class="no-lobbies">Failed to load lobbies</div>';
+      }
+    }
+    
+    async function joinLobby(lobbyId) {
+      try {
+        const response = await fetch(`/api/lobbies/${lobbyId}/join`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          currentLobby = data.lobby;
+          
+          // Switch to lobby view
+          showLobbyView();
+          
+          // Start polling for updates
+          startPolling();
+        } else {
+          const data = await response.json();
+          alert(data.message || 'Failed to join the lobby');
+        }
+      } catch (error) {
+        console.error('Join lobby error:', error);
+        alert('An error occurred while joining the lobby');
+      }
+    }
+    
+    function showLobbyView() {
+      joinLobbyView.style.display = 'none';
+      lobbyView.style.display = 'block';
+      
+      // Update lobby information
+      lobbyTitle.textContent = currentLobby.name;
+      lobbyPinDisplay.textContent = currentLobby.pin;
+      
+      // Update players list
+      updatePlayersListUI();
+    }
+    
+    function updatePlayersListUI() {
+      playersListContainer.innerHTML = '';
+      
+      currentLobby.players.forEach(player => {
+        const playerItem = document.createElement('div');
+        playerItem.className = 'player-item';
+        
+        const playerName = document.createElement('div');
+        playerName.className = 'player-name';
+        playerName.textContent = player.username;
+        
+        const playerStatus = document.createElement('div');
+        playerStatus.className = 'player-status';
+        
+        if (player.isCreator) {
+          playerStatus.textContent = 'Creator';
+          playerStatus.classList.add('status-creator');
+        } else if (player.isReady) {
+          playerStatus.textContent = 'Ready';
+          playerStatus.classList.add('status-ready');
+        } else {
+          playerStatus.textContent = 'Not Ready';
+          playerStatus.classList.add('status-not-ready');
+        }
+        
+        playerItem.appendChild(playerName);
+        playerItem.appendChild(playerStatus);
+        playersListContainer.appendChild(playerItem);
+      });
+      
+      // Update ready button state
+      const currentPlayer = currentLobby.players.find(p => p.id === currentUserId);
+      if (currentPlayer) {
+        isReady = currentPlayer.isReady;
+        
+        if (currentPlayer.isCreator) {
+          readyBtn.style.display = 'none'; // Creators don't need to get ready
+        } else {
+          readyBtn.style.display = 'block';
+          readyBtn.textContent = isReady ? 'Not Ready' : 'I\'m Ready';
+        }
+      }
+    }
+    
+    function startPolling() {
+      // Poll for lobby updates every 3 seconds
+      pollInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`/api/lobbies/${currentLobby._id}`);
+          
+          if (response.ok) {
+            const data = await response.json();
+            currentLobby = data.lobby;
+            
+            // Update the UI
+            updatePlayersListUI();
+            
+            // If the game has started, redirect to the game page
+            if (currentLobby.status === 'in_progress') {
+              window.location.href = `poker/poker.html?id=${currentLobby._id}`;
+            }
+          } else {
+            // Lobby might have been deleted
+            clearInterval(pollInterval);
+            alert('Lobby no longer exists');
+            window.location.href = 'index.html';
+          }
+        } catch (error) {
+          console.error('Poll lobby error:', error);
+        }
+      }, 3000);
+    }
+    
+    async function toggleReady() {
+      isReady = !isReady;
+      
+      try {
+        const response = await fetch(`/api/lobbies/${currentLobby._id}/ready`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ isReady })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          currentLobby = data.lobby;
+          
+          // Update UI
+          updatePlayersListUI();
+        } else {
+          const data = await response.json();
+          alert(data.message || 'Failed to update ready status');
+        }
+      } catch (error) {
+        console.error('Toggle ready error:', error);
+        alert('An error occurred while updating ready status');
+      }
+    }
+    
+    async function leaveLobby() {
+      try {
+        const response = await fetch(`/api/lobbies/${currentLobby._id}/leave`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (response.ok) {
+          // Stop polling and redirect to home
+          clearInterval(pollInterval);
+          window.location.href = 'index.html';
+        } else {
+          const data = await response.json();
+          alert(data.message || 'Failed to leave the lobby');
+        }
+      } catch (error) {
+        console.error('Leave lobby error:', error);
+        alert('An error occurred while leaving the lobby');
+      }
+    }
+    
+    // Initialize the page when loaded
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

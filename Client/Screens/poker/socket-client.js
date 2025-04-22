@@ -18,7 +18,7 @@ class PokerSocketClient {
     // Initialize the socket connection
     connect() {
       // Check if Socket.io is available
-      if (!window.io) {
+      if (typeof io === 'undefined') {
         console.error('Socket.io not loaded');
         return false;
       }
@@ -74,6 +74,17 @@ class PokerSocketClient {
         }
       });
       
+      this.socket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+        this.isConnected = false;
+        
+        if (this.callbacks.onError) {
+          this.callbacks.onError({
+            message: 'Failed to connect to server. Please try again later.'
+          });
+        }
+      });
+      
       return true;
     }
     
@@ -96,15 +107,18 @@ class PokerSocketClient {
       
       this.gameId = gameId;
       this.socket.emit('joinRoom', gameId);
+      console.log('Joining game room:', gameId);
       return true;
     }
     
     // Send a game action
     sendAction(action, amount = 0) {
       if (!this.isConnected || !this.gameId) {
+        console.error('Cannot send action: not connected or no game ID');
         return false;
       }
       
+      console.log('Sending action:', action, amount);
       this.socket.emit('gameAction', {
         lobbyId: this.gameId,
         action: action,
@@ -117,9 +131,11 @@ class PokerSocketClient {
     // Request to start the game
     startGame() {
       if (!this.isConnected || !this.gameId) {
+        console.error('Cannot start game: not connected or no game ID');
         return false;
       }
       
+      console.log('Requesting game start for:', this.gameId);
       this.socket.emit('startGame', this.gameId);
       return true;
     }
@@ -130,6 +146,22 @@ class PokerSocketClient {
         ...this.callbacks,
         ...callbacks
       };
+    }
+    
+    // Check if socket is connected
+    isSocketConnected() {
+      return this.isConnected && this.socket && this.socket.connected;
+    }
+    
+    // Reconnect if disconnected
+    reconnect() {
+      if (!this.isConnected && !this.socket) {
+        return this.connect();
+      } else if (!this.socket.connected) {
+        this.socket.connect();
+        return true;
+      }
+      return false;
     }
   }
   
