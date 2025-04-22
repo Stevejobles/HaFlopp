@@ -5,103 +5,82 @@ body {
     user-select: none;
     margin: 0;
     padding: 0;
-}
-
-.header {
+    background-image: radial-gradient(circle at center, #2f8c59 0%, #1A6F40 80%, #18603a 100%);
+  }
+  
+  .header {
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 20px 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.header .title {
+  }
+  
+  .header .title {
     font-size: 36px;
     margin-bottom: 10px;
-}
-
-.button {
+  }
+  
+  .button {
     padding: 10px 20px;
     background: rgba(255, 255, 255, 0.2);
     border-radius: 10px;
     cursor: pointer;
-}
-
-.button:hover {
+    transition: all 0.2s ease;
+  }
+  
+  .button:hover {
     background: rgba(255, 255, 255, 0.3);
-}
-
-.button:active {
+  }
+  
+  .button:active {
     background: rgba(255, 255, 255, 0.4);
-}
-
-.content {
+    transform: scale(0.98);
+  }
+  
+  .content {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 100vh;
-}
-
-h2 {
+  }
+  
+  h2 {
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
     padding-bottom: 10px;
     margin-top: 30px;
-}
-
-p {
+  }
+  
+  p {
     line-height: 1.6;
-}
-
-ul,
-ol {
+  }
+  
+  ul,
+  ol {
     margin-bottom: 20px;
-}
-
-li {
+  }
+  
+  li {
     margin-bottom: 10px;
-}
-
-.hand-rankings {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-top: 40px;
-    /* Increased margin to create more space */
-    margin-bottom: 40px;
-    /* Added bottom margin too */
-    padding: 20px;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 10px;
-}
-
-.hand-image {
-    width: 100%;
-    max-width: 650px;
-    margin: 20px 0;
-    text-align: center;
-}
-
-.hand-image img {
-    width: 100%;
-    height: auto;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-
-
-
-
-.pot {
+  }
+  
+  .pot {
     font-size: 28px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
     padding: 13px 24px;
     border-radius: 15px;
     display: flex;
     align-items: center;
     gap: 6px;
-}
-
-.back.button {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+  }
+  
+  .back.button {
     position: fixed;
     top: 20px;
     left: 20px;
@@ -110,127 +89,341 @@ li {
     justify-content: center;
     padding: 12px;
     border-radius: 50%;
-}
-
-
-
-
-
-.table {
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 100;
+  }
+  
+  .table {
     margin-bottom: 40px;
     background: rgba(0, 0, 0, 0.2);
     padding: 20px;
-    width: 730px;
-    height: 400px;
-    border-radius: 500px;
+    width: 800px;
+    height: 450px;
+    border-radius: 400px / 250px;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
-}
-
-
-.table .users {
+    box-shadow: 
+      0 10px 20px rgba(0, 0, 0, 0.19), 
+      0 6px 6px rgba(0, 0, 0, 0.23),
+      inset 0 0 100px rgba(0, 0, 0, 0.3);
+    border: 10px solid rgba(65, 30, 10, 0.8);
+  }
+  
+  .table::before {
+    content: "";
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    right: -5px;
+    bottom: -5px;
+    border-radius: 405px / 255px;
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+  }
+  
+  .table::after {
+    content: "";
+    position: absolute;
+    width: 90%;
+    height: 90%;
+    border-radius: 360px / 225px;
+    box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+  }
+  
+  .table .users {
     position: absolute;
     top: 0;
     left: 0;
     height: 100%;
     width: 100%;
-}
-
-.table .user {
+  }
+  
+  .table .user {
     position: absolute;
-}
-
-.user.me {
+    transition: all 0.3s ease;
+  }
+  
+  .user.me {
     left: 50%;
     bottom: -20px;
     transform: translateY(100%) translateX(-50%);
-}
-
-.table .other-users .user:nth-of-type(1) {
+  }
+  
+  .table .other-users .user:nth-of-type(1) {
+    left: 20%;
     bottom: 0;
+    transform: translateY(50%);
+  }
+  
+  .table .other-users .user:nth-of-type(2) {
+    left: 20%;
+    top: 20%;
     transform: translateX(-50%);
-}
-
-.table .other-users .user:nth-of-type(2) {
-    transform: translateX(-50%);
-}
-
-.table .other-users .user:nth-of-type(3) {
+  }
+  
+  .table .other-users .user:nth-of-type(3) {
     left: 50%;
     top: -20px;
     transform: translateY(-100%) translateX(-50%);
-}
-
-.table .other-users .user:nth-of-type(4) {
-    right: 0;
+  }
+  
+  .table .other-users .user:nth-of-type(4) {
+    right: 20%;
+    top: 20%;
     transform: translateX(50%);
-}
-
-.table .other-users .user:nth-of-type(5) {
+  }
+  
+  .table .other-users .user:nth-of-type(5) {
+    right: 20%;
     bottom: 0;
-    right: 0;
-    transform: translateX(50%);
-}
-
-.table .user .balance {opacity: 0.8;}
-
-.table .user .name {
+    transform: translateY(50%);
+  }
+  
+  .table .user .balance {
+    opacity: 0.8;
+    font-size: 16px;
+  }
+  
+  .table .user .name {
     max-width: 170px;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-}
-
-.table .user .cards {
+    font-weight: bold;
+    font-size: 18px;
+  }
+  
+  .table .user .cards {
     margin-bottom: -31px;
     display: flex;
-    z-index: -1;
+    z-index: 1;
     position: relative;
-}
-
-.table .user .card {
+    justify-content: center;
+  }
+  
+  .table .user .card {
     width: 77px;
     height: 107px;
-    background: #85a895;
+    background: white;
     border-radius: 7px;
-    box-shadow: 4px 2px 0px 0px rgba(0, 0, 0, 0.1);
+    box-shadow: 
+      4px 4px 8px rgba(0, 0, 0, 0.25),
+      0 0 0 1px rgba(0, 0, 0, 0.1);
     position: relative;
-}
-
-.table .user .card:nth-of-type(2) {
-    margin-left: -10px;
-    z-index: -1;
-}
-
-.table .card .number {
+    transition: transform 0.3s ease;
+    transform-style: preserve-3d;
+    animation: card-deal 0.5s ease-out;
+  }
+  
+  .table .other-users .user .card {
+    background: #85a895;
+  }
+  
+  .table .user .card:nth-of-type(2) {
+    margin-left: -20px;
+    z-index: 0;
+  }
+  
+  .table .user:hover .card {
+    transform: translateY(-10px);
+  }
+  
+  .table .user.me:hover .card:nth-of-type(1) {
+    transform: translateY(-10px) rotate(-5deg);
+  }
+  
+  .table .user.me:hover .card:nth-of-type(2) {
+    transform: translateY(-10px) rotate(5deg);
+  }
+  
+  .table .card .number {
     position: absolute;
-    top: 6px;
-    right: 12px;
-    font-size: 17px;
-}
-
-.table .user .user-content {
+    top: 8px;
+    left: 8px;
+    font-size: 24px;
+    font-weight: bold;
+    color: black;
+  }
+  
+  .table .card .number:nth-of-type(1)[data-suit="♥"],
+  .table .card .number:nth-of-type(1)[data-suit="♦"] {
+    color: red;
+  }
+  
+  .table .user .user-content {
     font-size: 19px;
-    padding: 10px 14px;
-    background: rgb(23 100 57);
+    padding: 12px 16px;
+    background: rgb(27, 95, 60);
     border-radius: 10px;
     display: flex;
     flex-wrap: wrap;
-    max-width: 164px;
+    max-width: 180px;
     column-gap: 17px;
     row-gap: 2px;
     width: max-content;
-}
-
-
-
-@keyframes card-fold {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+  }
+  
+  .user.current-turn .user-content {
+    background: rgb(41, 128, 84);
+    box-shadow: 
+      0 0 0 2px rgba(255, 215, 0, 0.6),
+      0 4px 8px rgba(0, 0, 0, 0.15);
+    animation: pulse 1.5s infinite;
+  }
+  
+  @keyframes pulse {
     0% {
-        transform: rotateY(90deg);
+      box-shadow: 
+        0 0 0 2px rgba(255, 215, 0, 0.6),
+        0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    50% {
+      box-shadow: 
+        0 0 0 4px rgba(255, 215, 0, 0.4),
+        0 4px 8px rgba(0, 0, 0, 0.15);
     }
     100% {
-        transform: rotateY(0deg);
+      box-shadow: 
+        0 0 0 2px rgba(255, 215, 0, 0.6),
+        0 4px 8px rgba(0, 0, 0, 0.15);
     }
-}
+  }
+  
+  .table-cards {
+    display: flex;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    gap: 10px;
+  }
+  
+  .table-card {
+    width: 80px;
+    height: 115px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 
+      0 4px 8px rgba(0, 0, 0, 0.3),
+      0 0 0 1px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 28px;
+    font-weight: bold;
+    color: black;
+    position: relative;
+    transition: all 0.3s ease;
+    animation: card-reveal 0.5s ease-out;
+  }
+  
+  .table-card.hidden {
+    background: #85a895;
+    color: transparent;
+    animation: none;
+  }
+  
+  .game-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 15px;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 15px;
+    border-radius: 10px;
+  }
+  
+  .control-btn {
+    padding: 12px 24px;
+    background: rgba(255, 0, 0, 0.5);
+    border: none;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    transition: all 0.2s ease;
+    min-width: 80px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+  
+  .control-btn:hover {
+    background: rgba(255, 0, 0, 0.7);
+    transform: translateY(-2px);
+  }
+  
+  .control-btn:active {
+    background: rgba(255, 0, 0, 0.8);
+    transform: translateY(1px);
+  }
+  
+  .control-btn.disabled {
+    background: rgba(100, 100, 100, 0.4);
+    cursor: not-allowed;
+    transform: none;
+  }
+  
+  .bet-input {
+    width: 100px;
+    padding: 12px;
+    text-align: center;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .game-status {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 18px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 5;
+  }
+  
+  @keyframes card-deal {
+    0% {
+      opacity: 0;
+      transform: translateY(-50px) scale(0.8);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  
+  @keyframes card-reveal {
+    0% {
+      opacity: 0;
+      transform: rotateY(90deg) scale(0.9);
+    }
+    100% {
+      opacity: 1;
+      transform: rotateY(0) scale(1);
+    }
+  }
+  
+  @keyframes card-fold {
+    0% {
+      transform: rotateY(0);
+    }
+    100% {
+      transform: rotateY(90deg);
+    }
+  }
