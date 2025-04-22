@@ -10,8 +10,6 @@ const http = require('http');
 // Import our models
 const lobbyModel = require('./models/lobby');
 const pokerGame = require('./models/pokerGame');
-// Don't import SocketManager here to avoid issues with the module not found
-// We'll create and initialize it after setting up the server
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -534,3 +532,12 @@ process.on('SIGINT', async () => {
 
 // Start the server
 startServer().catch(console.error);
+
+// For platforms like Render that need direct binding
+// If startServer() isn't executed correctly for some reason
+if (process.env.NODE_ENV === 'production') {
+  // Ensure the server is listening on a port for platforms like Render
+  server.listen(port, () => {
+    console.log(`Backup listener: Server running on port ${port}`);
+  });
+}
