@@ -595,7 +595,7 @@
             
             // If the game has started, redirect to the game page
             if (currentLobby.status === 'in_progress') {
-              window.location.pathname = `/Screens/poker/poker.html?id=${currentLobby._id}`;
+              window.location.href = `/Screens/poker/poker.html?id=${currentLobby._id}`;
             }
           } else {
             // Lobby might have been deleted
