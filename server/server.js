@@ -64,6 +64,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(sessionMiddleware);
 
+// Serve static files
+// This is important - serve the entire Client directory as static
+app.use(express.static(path.join(__dirname, '..', 'Client')));
+
 // Middleware to check if user is authenticated
 function requireAuth(req, res, next) {
   if (req.session.userId) {
@@ -86,7 +90,11 @@ function requireAuth(req, res, next) {
   res.status(401).json({ message: 'Authentication required' });
 }
 
+// Authentication middleware for page requests
 app.use((req, res, next) => {
+  // Log the request path for debugging
+  console.log(`Request path: ${req.path}`);
+  
   // Paths that don't require authentication
   const publicPaths = [
     '/login.html', 
@@ -96,7 +104,9 @@ app.use((req, res, next) => {
     '/api/login', 
     '/api/signup', 
     '/api/forgot-password', 
-    '/api/reset-password'
+    '/api/reset-password',
+    '/style.css', // Allow access to CSS
+    '/pokerSolver.js' // Allow access to JS
   ];
   
   // Check if the path is a public asset (CSS, JS, images)
@@ -131,24 +141,17 @@ app.use((req, res, next) => {
     }
     
     // Otherwise redirect to login page
-    return res.redirect('/login.html');
+    return res.redirect('/Screens/login.html');
   }
 });
 
-// Modify this route to redirect to login
+// Root route - redirect to index.html if authenticated
 app.get('/', (req, res) => {
   if (!req.session.userId && !req.cookies.rememberToken) {
-    return res.redirect('/login.html');
+    return res.redirect('/Screens/login.html');
   }
   res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'index.html'));
 });
-
-// Your other routes remain the same...
-
-// Serve static files from the Client directory
-app.use(express.static(path.join(__dirname, '..', 'Client')));
-// Serve files from the Screens directory
-app.use('/Screens', express.static(path.join(__dirname, '..', 'Client', 'Screens')));
 
 // User Registration (Signup) API
 app.post('/api/signup', async (req, res) => {
@@ -303,6 +306,7 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ message: 'An error occurred during login' });
   }
 });
+
 // Logout API
 app.post('/api/logout', (req, res) => {
   // Clear the session
@@ -514,11 +518,8 @@ app.post('/api/lobbies/:id/start', requireAuth, async (req, res) => {
     const lobbyId = req.params.id;
     const userId = req.session.userId;
     
-    // Start the game via traditional REST API
+    // Start the game
     const lobby = await lobbyModel.startGame(lobbyId, userId);
-    
-    // Also start the game via WebSockets for real-time updates
-    // We'll use the socketManager later after it's initialized
     
     res.json({ lobby });
   } catch (error) {
@@ -527,92 +528,25 @@ app.post('/api/lobbies/:id/start', requireAuth, async (req, res) => {
   }
 });
 
-// Route to serve the login page
-app.get('/login', (req, res) => {
-  // If already logged in, redirect to home
-  if (req.session.userId) {
-    return res.redirect('/');
-  }
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'login.html'));
-});
-
-// Login page is also available at /login.html
-app.get('/login.html', (req, res) => {
-  // If already logged in, redirect to home
-  if (req.session.userId) {
-    return res.redirect('/');
-  }
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'login.html'));
-});
-
-// Route to serve the signup page
-app.get('/signup', (req, res) => {
-  // If already logged in, redirect to home
-  if (req.session.userId) {
-    return res.redirect('/');
-  }
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'signup.html'));
-});
-
-app.get('/signup.html', (req, res) => {
-  // If already logged in, redirect to home
-  if (req.session.userId) {
-    return res.redirect('/');
-  }
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'signup.html'));
-});
-
-// Other public pages
-app.get('/forgot-password', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'forgot-password.html'));
-});
-
-app.get('/forgot-password.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'forgot-password.html'));
-});
-
-app.get('/reset-password', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'reset-password.html'));
-});
-
-app.get('/reset-password.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'reset-password.html'));
-});
-
-// Special handling for Screens paths
+// Direct screen routes for our HTML pages
 app.get('/Screens/:page', (req, res) => {
-  const page = req.params.page;
-  
-  // Check if user is authenticated for protected pages
-  if (!req.session.userId && !req.cookies.rememberToken && 
-      !['login.html', 'signup.html', 'forgot-password.html', 'reset-password.html'].includes(page)) {
-    return res.redirect('/login.html');
-  }
-  
-  // Serve the requested page
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', page));
+  console.log(`Serving screen: ${req.params.page}`);
+  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', req.params.page));
+});
+
+// Handle deeper path structures
+app.get('/Screens/:folder/:page', (req, res) => {
+  console.log(`Serving nested screen: ${req.params.folder}/${req.params.page}`);
+  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', req.params.folder, req.params.page));
 });
 
 // Catch-all route to handle page refreshes with client-side routing
-// This will also catch any undefined routes and redirect to login if not authenticated
 app.get('*', (req, res) => {
+  console.log(`Catch-all route hit for: ${req.path}`);
   if (!req.session.userId && !req.cookies.rememberToken) {
-    return res.redirect('/login.html');
+    return res.redirect('/Screens/login.html');
   }
-  // For all other routes, serve the main app
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'index.html'));
-});
-
-// Protected routes - all of these already have the requireAuth middleware
-// so they'll redirect to login if user isn't authenticated
-
-// Catch-all route to handle page refreshes with client-side routing
-// This will also catch any undefined routes and redirect to login if not authenticated
-app.get('*', (req, res) => {
-  if (!req.session.userId && !req.cookies.rememberToken) {
-    return res.redirect('/login.html');
-  }
-  // For all other routes, serve the main app
+  // For all other routes, send the index.html
   res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', 'index.html'));
 });
 
@@ -621,7 +555,6 @@ async function startServer() {
   await connectToDatabase();
   
   // Import and initialize Socket.io after database connection is established
-  // This avoids the "Module not found" error, as the module is loaded here
   const SocketManager = require('./socketManager');
   const socketManager = SocketManager.getInstance(server, sessionMiddleware, db);
   

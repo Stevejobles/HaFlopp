@@ -142,7 +142,7 @@
 </head>
 
 <body>
-  <div class="back-button button" onclick="window.location.href='index.html'">← Back</div>
+  <div class="back-button button" onclick="window.location.pathname = '/Screens/index.html'">← Back</div>
 
   <div class="header">
     <div class="title">Haflop</div>
@@ -233,12 +233,12 @@
           return true;
         } else {
           // Redirect to login if not authenticated
-          window.location.href = 'login.html';
+          window.location.pathname = '/Screens/login.html';
           return false;
         }
       } catch (error) {
         console.error('Auth check error:', error);
-        window.location.href = 'login.html';
+        window.location.pathname = '/Screens/login.html';
         return false;
       }
     }
@@ -356,7 +356,7 @@
       
       // Update join link
       const baseUrl = window.location.origin;
-      joinLinkDisplay.textContent = `${baseUrl}/join-game.html?pin=${currentLobby.pin}`;
+      joinLinkDisplay.textContent = `${baseUrl}/Screens/join-game.html?pin=${currentLobby.pin}`;
       
       // Update players list
       updatePlayersListUI();
@@ -415,13 +415,13 @@
             
             // If the game has started, redirect to the game page
             if (currentLobby.status === 'in_progress') {
-              window.location.href = `poker/poker.html?id=${currentLobby._id}`;
+              window.location.pathname = `/Screens/poker/poker.html?id=${currentLobby._id}`;
             }
           } else {
             // Lobby might have been deleted
             clearInterval(pollInterval);
             alert('Lobby no longer exists');
-            window.location.href = 'index.html';
+            window.location.pathname = '/Screens/index.html';
           }
         } catch (error) {
           console.error('Poll lobby error:', error);
@@ -464,7 +464,7 @@
         if (response.ok) {
           // Stop polling and redirect to home
           clearInterval(pollInterval);
-          window.location.href = 'index.html';
+          window.location.pathname = '/Screens/index.html';
         } else {
           const data = await response.json();
           alert(data.message || 'Failed to leave the lobby');

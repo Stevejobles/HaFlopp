@@ -93,7 +93,7 @@
         const response = await fetch('/api/user');
         if (response.ok) {
           // User is already logged in, redirect to home page
-          window.location.href = '/';
+          window.location.pathname = '/Screens/index.html';
         }
       } catch (error) {
         console.error('Auth check error:', error);
@@ -137,8 +137,8 @@
         const data = await response.json();
         
         if (response.ok) {
-          // Successfully logged in
-          window.location.href = '/';
+          // Successfully logged in - use pathname for full page load
+          window.location.pathname = '/Screens/index.html';
         } else {
           // Show error message
           const errorElem = document.getElementById('password-error');

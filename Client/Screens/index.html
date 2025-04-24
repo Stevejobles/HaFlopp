@@ -48,34 +48,35 @@
             userInfoElement.style.display = 'block';
           } else {
             // User is not logged in, redirect to login page
-            window.location.href = '/login.html';
+            window.location.href = '/Screens/login.html';
           }
         } catch (error) {
           console.error('Auth check error:', error);
-          window.location.href = '/login.html';
+          window.location.href = '/Screens/login.html';
         }
       };
       
       // Check authentication status when the page loads
       checkAuth();
       
-      // Add click event listeners
+      // Add click event listeners with absolute paths
       createLobbyBtn.addEventListener('click', function() {
-        window.location.href = 'create-lobby.html';
+        // Use window.location.pathname to force a full page load instead of client-side routing
+        window.location.pathname = '/Screens/create-lobby.html';
       });
       
       joinGameBtn.addEventListener('click', function() {
-        window.location.href = 'join-game.html';
+        window.location.pathname = '/Screens/join-game.html';
       });
       
       learnBtn.addEventListener('click', function() {
-        window.location.href = 'learn2play.html';
+        window.location.pathname = '/Screens/learn2play.html';
       });
       
       logoutBtn.addEventListener('click', async function() {
         try {
           await fetch('/api/logout', { method: 'POST' });
-          window.location.href = '/login.html';
+          window.location.pathname = '/Screens/login.html';
         } catch (error) {
           console.error('Logout error:', error);
         }
