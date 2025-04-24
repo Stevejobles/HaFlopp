@@ -106,7 +106,8 @@ class PokerSocketClient {
       }
       
       this.gameId = gameId;
-      this.socket.emit('joinRoom', gameId);
+      // Change this to match the server's expected event name
+      this.socket.emit('joinGame', gameId); // Changed from 'joinRoom' to 'joinGame'
       console.log('Joining game room:', gameId);
       return true;
     }

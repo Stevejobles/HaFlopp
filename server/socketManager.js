@@ -58,7 +58,7 @@ class SocketManager {
       this.userSockets.set(userId, socket);
       
       // Handle joining a game room
-      socket.on('joinRoom', (lobbyId) => {
+      socket.on('joinGame', (lobbyId) => {
         // Leave any previous rooms
         Array.from(socket.rooms)
           .filter(room => room !== socket.id)
