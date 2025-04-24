@@ -24,56 +24,73 @@ class SocketManager {
   }
   
   setupSocketMiddleware() {
-    // Apply session middleware to socket.io
+    // Replace the existing middleware code with this new implementation
     this.io.use((socket, next) => {
-      // Directly access the session ID from the cookie
+      // Directly access the cookie string
       const cookieString = socket.request.headers.cookie;
       console.log('Socket request cookies raw:', cookieString);
       
       if (cookieString) {
-        // Parse the session ID from the cookie
+        // Parse all cookies
         const cookies = {};
         cookieString.split(';').forEach(cookie => {
           const parts = cookie.split('=');
-          cookies[parts[0].trim()] = parts[1].trim();
+          if (parts.length >= 2) {
+            cookies[parts[0].trim()] = parts[1].trim();
+          }
         });
         
-        // Look for the session ID cookie (usually "connect.sid" by default)
-        const sessionId = cookies['connect.sid'];
-        console.log('Found session ID in cookie:', sessionId);
+        // First try to use the rememberToken
+        const token = cookies['rememberToken'];
+        if (token) {
+          try {
+            console.log('Found remember token, attempting to verify');
+            const decoded = jwt.verify(
+              token, 
+              process.env.JWT_SECRET || 'haflop-secret-key-should-be-environment-variable'
+            );
+            
+            if (decoded && decoded.userId) {
+              console.log('Successfully authenticated with token for user:', decoded.userId);
+              socket.userId = decoded.userId;
+              return next();
+            }
+          } catch (error) {
+            console.error('Token verification error:', error);
+          }
+        }
         
+        // If token auth failed, try query params next
+        const queryUserId = socket.handshake.query.userId;
+        if (queryUserId) {
+          console.log('Found user ID in query params:', queryUserId);
+          socket.userId = queryUserId;
+          return next();
+        }
+        
+        // Last resort - try session (but this likely won't work if no session cookie)
+        const sessionId = cookies['connect.sid'];
         if (sessionId) {
-          // Apply the session middleware
           this.sessionMiddleware(socket.request, socket.request.res || {}, () => {
-            console.log('Session after middleware:', socket.request.session);
-            
-            // Now try to get the user ID from the session
             const userId = socket.request.session?.userId;
-            console.log('User ID from session after middleware:', userId);
-            
             if (userId) {
               socket.userId = userId;
               return next();
-            } else {
-              // Try the token as a backup
-              const token = cookies['rememberToken'];
-              if (token) {
-                try {
-                  const decoded = jwt.verify(token, process.env.JWT_SECRET || 'haflop-secret-key-should-be-environment-variable');
-                  socket.userId = decoded.userId;
-                  return next();
-                } catch (error) {
-                  console.error('Socket token verification error:', error);
-                }
-              }
-              return next(new Error('Authentication required'));
             }
+            return next(new Error('No user ID in session'));
           });
         } else {
-          return next(new Error('No session ID found'));
+          return next(new Error('Authentication failed'));
         }
       } else {
-        return next(new Error('No cookies found'));
+        // No cookies at all - check query params
+        const queryUserId = socket.handshake.query.userId;
+        if (queryUserId) {
+          console.log('Found user ID in query params (no cookies):', queryUserId);
+          socket.userId = queryUserId;
+          return next();
+        }
+        return next(new Error('No authentication data found'));
       }
     });
   }
