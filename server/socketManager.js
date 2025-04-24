@@ -5,7 +5,14 @@ const { ObjectId } = require('mongodb');
 // Game state tracking
 class SocketManager {
   constructor(server, sessionMiddleware, db) {
-    this.io = new Server(server);
+    this.io = new Server(server, {
+      cors: {
+        origin: "http://localhost:3000", // Adjust to your client URL
+        methods: ["GET", "POST"],
+        credentials: true
+      }
+    });
+  
     this.sessionMiddleware = sessionMiddleware;
     this.db = db;
     this.userSockets = new Map(); // Map of userId -> socket
@@ -16,17 +23,19 @@ class SocketManager {
   }
   
   setupSocketMiddleware() {
-    // Convert express middleware to socket.io middleware
-    const wrap = middleware => (socket, next) => middleware(socket.request, {}, next);
-    
     // Apply session middleware to socket.io
-    this.io.use(wrap(this.sessionMiddleware));
-    
+    this.io.use((socket, next) => {
+      this.sessionMiddleware(socket.request, socket.request.res || {}, next);
+    });
+  
     // Authentication middleware
     this.io.use(async (socket, next) => {
-      const userId = socket.request.session.userId;
-      console.log('Socket auth check - session user ID:', userId);
-
+      console.log('Socket request cookies:', socket.request.cookies);
+      console.log('Socket request session:', socket.request.session);
+      
+      const userId = socket.request.session?.userId;
+      console.log(`Socket auth check - session user ID: ${userId}`);
+      
       if (userId) {
         socket.userId = userId;
         return next();

@@ -27,8 +27,12 @@ class PokerSocketClient {
       console.log('Attempting to connect socket...');
       // Create socket connection
       this.socket = io({
-        withCredentials: true  // Make sure credentials are sent with the request
-      });      
+        withCredentials: true,
+        autoConnect: true,
+        reconnectionAttempts: 5
+      });
+      console.log('Socket.io connection attempt with credentials');
+      
       console.log('Socket connection attempt made');
       
       // Set up event listeners
