@@ -25,7 +25,8 @@ class SocketManager {
     // Authentication middleware
     this.io.use(async (socket, next) => {
       const userId = socket.request.session.userId;
-      
+      console.log('Socket auth check - session user ID:', userId);
+
       if (userId) {
         socket.userId = userId;
         return next();
@@ -33,6 +34,7 @@ class SocketManager {
       
       // Check for token in cookies
       const token = socket.request.cookies?.rememberToken;
+      console.log('Socket auth check - token present:', !!token);
       
       if (token) {
         try {
@@ -51,7 +53,8 @@ class SocketManager {
   setupEventHandlers() {
     this.io.on('connection', (socket) => {
       const userId = socket.userId;
-      
+      console.log(`User connected with socket ID: ${socket.id}, user ID: ${userId}`);
+
       console.log(`User connected: ${userId}`);
       
       // Store socket reference for this user
@@ -59,6 +62,7 @@ class SocketManager {
       
       // Handle joining a game room
       socket.on('joinGame', (lobbyId) => {
+        console.log(`Attempt to join game: ${lobbyId} by user: ${userId}`);
         // Leave any previous rooms
         Array.from(socket.rooms)
           .filter(room => room !== socket.id)

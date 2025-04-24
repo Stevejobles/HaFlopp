@@ -23,8 +23,13 @@ class PokerSocketClient {
         return false;
       }
       
+      // In socket-client.js connect() method:
+      console.log('Attempting to connect socket...');
       // Create socket connection
-      this.socket = io();
+      this.socket = io({
+        withCredentials: true  // Make sure credentials are sent with the request
+      });      
+      console.log('Socket connection attempt made');
       
       // Set up event listeners
       this.socket.on('connect', () => {
@@ -37,6 +42,9 @@ class PokerSocketClient {
         
         // If we have a game ID, join that room
         if (this.gameId) {
+          // In joinGame method of socket-client.js
+          console.log('Joining game with ID:', gameId);
+          this.socket.emit('joinGame', gameId);
           this.joinGame(this.gameId);
         }
       });

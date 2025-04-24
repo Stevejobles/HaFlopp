@@ -37,6 +37,8 @@ class PokerGame {
       
       // Socket connection
       this.socket = window.pokerSocket;
+      // In setupSocketCallbacks in game.js
+      console.log('Setting up socket callbacks with:', this.callbacks);
       this.setupSocketCallbacks();
       
       // Initialize
@@ -445,6 +447,7 @@ class PokerGame {
     // Get the lobby ID from the URL
     const urlParams = new URLSearchParams(window.location.search);
     const lobbyId = urlParams.get('id');
+    console.log('Extracted lobby ID from URL:', lobbyId);
     
     if (!lobbyId) {
       alert('No game ID provided');
