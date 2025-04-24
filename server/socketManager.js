@@ -7,9 +7,10 @@ class SocketManager {
   constructor(server, sessionMiddleware, db) {
     this.io = new Server(server, {
       cors: {
-        origin: "http://localhost:3000", // Adjust to your client URL
+        origin: true, // Allow all origins (or specify your domain)
         methods: ["GET", "POST"],
-        credentials: true
+        credentials: true,
+        allowedHeaders: ["Cookie"]
       }
     });
   
@@ -25,37 +26,55 @@ class SocketManager {
   setupSocketMiddleware() {
     // Apply session middleware to socket.io
     this.io.use((socket, next) => {
-      this.sessionMiddleware(socket.request, socket.request.res || {}, next);
-    });
-  
-    // Authentication middleware
-    this.io.use(async (socket, next) => {
-      console.log('Socket request cookies:', socket.request.cookies);
-      console.log('Socket request session:', socket.request.session);
+      // Directly access the session ID from the cookie
+      const cookieString = socket.request.headers.cookie;
+      console.log('Socket request cookies raw:', cookieString);
       
-      const userId = socket.request.session?.userId;
-      console.log(`Socket auth check - session user ID: ${userId}`);
-      
-      if (userId) {
-        socket.userId = userId;
-        return next();
-      }
-      
-      // Check for token in cookies
-      const token = socket.request.cookies?.rememberToken;
-      console.log('Socket auth check - token present:', !!token);
-      
-      if (token) {
-        try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'haflop-secret-key-should-be-environment-variable');
-          socket.userId = decoded.userId;
-          return next();
-        } catch (error) {
-          console.error('Socket auth error:', error);
+      if (cookieString) {
+        // Parse the session ID from the cookie
+        const cookies = {};
+        cookieString.split(';').forEach(cookie => {
+          const parts = cookie.split('=');
+          cookies[parts[0].trim()] = parts[1].trim();
+        });
+        
+        // Look for the session ID cookie (usually "connect.sid" by default)
+        const sessionId = cookies['connect.sid'];
+        console.log('Found session ID in cookie:', sessionId);
+        
+        if (sessionId) {
+          // Apply the session middleware
+          this.sessionMiddleware(socket.request, socket.request.res || {}, () => {
+            console.log('Session after middleware:', socket.request.session);
+            
+            // Now try to get the user ID from the session
+            const userId = socket.request.session?.userId;
+            console.log('User ID from session after middleware:', userId);
+            
+            if (userId) {
+              socket.userId = userId;
+              return next();
+            } else {
+              // Try the token as a backup
+              const token = cookies['rememberToken'];
+              if (token) {
+                try {
+                  const decoded = jwt.verify(token, process.env.JWT_SECRET || 'haflop-secret-key-should-be-environment-variable');
+                  socket.userId = decoded.userId;
+                  return next();
+                } catch (error) {
+                  console.error('Socket token verification error:', error);
+                }
+              }
+              return next(new Error('Authentication required'));
+            }
+          });
+        } else {
+          return next(new Error('No session ID found'));
         }
+      } else {
+        return next(new Error('No cookies found'));
       }
-      
-      return next(new Error('Authentication required'));
     });
   }
   

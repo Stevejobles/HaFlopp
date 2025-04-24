@@ -57,9 +57,11 @@ class PokerGame {
         const userData = await userResponse.json();
         this.currentUser = userData.user;
         
-        // Connect to Socket.io
-        this.socket.connect();
-        this.socket.joinGame(this.lobbyId);
+        // Connect to Socket.io with user ID as a query parameter
+        this.socket.connectWithAuth(this.currentUser.id);
+        
+        // Join the game room after connection is established
+        // The socket callbacks should handle this in the onConnect method
         
         // Disable all control buttons initially
         this.updateControlButtons([]);

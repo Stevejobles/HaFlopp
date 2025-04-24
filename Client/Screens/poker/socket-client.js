@@ -16,87 +16,81 @@ class PokerSocketClient {
     }
     
     // Initialize the socket connection
-    connect() {
+    // Add this new method to the PokerSocketClient class
+    connectWithAuth(userId) {
       // Check if Socket.io is available
       if (typeof io === 'undefined') {
         console.error('Socket.io not loaded');
         return false;
       }
-      
-      // In socket-client.js connect() method:
-      console.log('Attempting to connect socket...');
-      // Create socket connection
+
+      console.log('Connecting socket with user ID:', userId);
+      // Create socket connection with user ID in query
       this.socket = io({
-        withCredentials: true,
-        autoConnect: true,
-        reconnectionAttempts: 5
+        query: { userId: userId },
+        withCredentials: true
       });
-      console.log('Socket.io connection attempt with credentials');
-      
-      console.log('Socket connection attempt made');
-      
-      // Set up event listeners
+
+      // Set up the same event listeners as in your connect() method
       this.socket.on('connect', () => {
         this.isConnected = true;
-        console.log('Socket connected');
-        
+        console.log('Socket connected with auth');
+
         if (this.callbacks.onConnect) {
           this.callbacks.onConnect();
         }
-        
+
         // If we have a game ID, join that room
         if (this.gameId) {
-          // In joinGame method of socket-client.js
-          console.log('Joining game with ID:', gameId);
-          this.socket.emit('joinGame', gameId);
           this.joinGame(this.gameId);
         }
       });
-      
+
+      // Copy the rest of your event listeners from the connect() method
       this.socket.on('disconnect', () => {
         this.isConnected = false;
         console.log('Socket disconnected');
-        
+
         if (this.callbacks.onDisconnect) {
           this.callbacks.onDisconnect();
         }
       });
-      
+
       this.socket.on('gameState', (data) => {
         console.log('Game state received:', data);
-        
+
         if (this.callbacks.onGameState) {
           this.callbacks.onGameState(data);
         }
       });
-      
+
       this.socket.on('error', (error) => {
         console.error('Socket error:', error);
-        
+
         if (this.callbacks.onError) {
           this.callbacks.onError(error);
         }
       });
-      
+
       this.socket.on('gameStarted', (data) => {
         console.log('Game started:', data);
-        
+
         if (this.callbacks.onGameStarted) {
           this.callbacks.onGameStarted(data);
         }
       });
-      
+
       this.socket.on('connect_error', (error) => {
         console.error('Socket connection error:', error);
         this.isConnected = false;
-        
+
         if (this.callbacks.onError) {
           this.callbacks.onError({
             message: 'Failed to connect to server. Please try again later.'
           });
         }
       });
-      
+
       return true;
     }
     

@@ -51,10 +51,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'haflop-secret-key-should-be-enviro
 const sessionMiddleware = session({
   secret: 'haflop-poker-secret-key',
   resave: false,
-  saveUninitialized: true, // Changed to true to ensure session is always created
+  saveUninitialized: true,
   cookie: { 
-    secure: process.env.NODE_ENV === 'production', // Set to true if using HTTPS
-    maxAge: 1000 * 60 * 60 * 24 // 24 hours
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: false, // Set to false to make it accessible to JavaScript
+    maxAge: 1000 * 60 * 60 * 24
   }
 });
 
