@@ -536,8 +536,10 @@ app.get('/Screens/:page', (req, res) => {
 
 // Handle deeper path structures
 app.get('/Screens/:folder/:page', (req, res) => {
-  console.log(`Serving nested screen: ${req.params.folder}/${req.params.page}`);
-  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', req.params.folder, req.params.page));
+  // Extract just the filename part before any query parameters
+  const pageName = req.params.page.split('?')[0];
+  console.log(`Serving nested screen: ${req.params.folder}/${pageName}`);
+  res.sendFile(path.join(__dirname, '..', 'Client', 'Screens', req.params.folder, pageName));
 });
 
 // Catch-all route to handle page refreshes with client-side routing
