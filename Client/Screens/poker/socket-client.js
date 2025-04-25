@@ -25,23 +25,34 @@ class PokerSocketClient {
       }
 
       console.log('Connecting socket with user ID:', userId);
+
+      if (this.socket) {
+        this.socket.disconnect();
+      }
+
       // Create socket connection with user ID in query
       this.socket = io({
         query: { userId: userId },
-        withCredentials: true
+        withCredentials: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000
       });
 
       // Set up the same event listeners as in your connect() method
       this.socket.on('connect', () => {
         this.isConnected = true;
-        console.log('Socket connected with auth');
-
+        console.log('Socket connected successfully with ID:', this.socket.id);
+        
         if (this.callbacks.onConnect) {
           this.callbacks.onConnect();
         }
 
         // If we have a game ID, join that room
         if (this.gameId) {
+          console.log('Auto-joining game room after connection:', this.gameId);
           this.joinGame(this.gameId);
         }
       });
@@ -86,7 +97,7 @@ class PokerSocketClient {
 
         if (this.callbacks.onError) {
           this.callbacks.onError({
-            message: 'Failed to connect to server. Please try again later.'
+            message: 'Failed to connect to server: ' + (error.message || 'Unknown error')
           });
         }
       });

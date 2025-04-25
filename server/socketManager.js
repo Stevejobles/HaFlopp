@@ -112,17 +112,28 @@ class SocketManager {
         Array.from(socket.rooms)
           .filter(room => room !== socket.id)
           .forEach(room => socket.leave(room));
-        
+
         // Join the new room
         socket.join(lobbyId);
         console.log(`User ${userId} joined room ${lobbyId}`);
-        
+
         // If there's an active game for this lobby, send game state
         if (this.roomToGame.has(lobbyId)) {
           const gameState = this.roomToGame.get(lobbyId);
           socket.emit('gameState', {
             gameState: this.getPublicGameState(gameState),
             playerState: this.getPlayerState(gameState, userId)
+          });
+        } else {
+          // This is important - if there's no game yet, create one!
+          console.log(`No game found for lobby ${lobbyId}, attempting to create one`);
+          this.startGame(lobbyId).then(success => {
+            if (success) {
+              console.log(`Game created for lobby ${lobbyId}`);
+            } else {
+              console.error(`Failed to create game for lobby ${lobbyId}`);
+              socket.emit('error', { message: 'Failed to create game' });
+            }
           });
         }
       });
@@ -199,16 +210,22 @@ class SocketManager {
   }
   
   // Start a game for a lobby
+// Start a game for a lobby
   async startGame(lobbyId) {
     try {
+      console.log(`Starting game for lobby: ${lobbyId}`);
+
       // Get the lobby
       const lobbiesCollection = this.db.collection("lobbies");
       const lobby = await lobbiesCollection.findOne({ _id: new ObjectId(lobbyId) });
-      
+
       if (!lobby) {
+        console.error(`Lobby not found: ${lobbyId}`);
         throw new Error("Lobby not found");
       }
-      
+
+      console.log(`Found lobby with ${lobby.players.length} players`);
+
       // Initialize a basic game state
       const gameState = {
         lobbyId: lobbyId,
@@ -240,26 +257,40 @@ class SocketManager {
         isGameOver: false,
         winner: null
       };
-      
+
       // Setup dealer and blinds
       this.setupBlinds(gameState);
-      
+      console.log(`Blinds set up. Dealer: ${gameState.dealer}, SB: ${gameState.smallBlind}, BB: ${gameState.bigBlind}`);
+
       // Store the game state
       this.roomToGame.set(lobbyId, gameState);
-      
+      console.log(`Game state created and stored for lobby: ${lobbyId}`);
+
       // Broadcast to all players in the room
       this.io.to(lobbyId).emit('gameStarted', { lobbyId });
-      this.broadcastGameState(lobbyId);
-      
+      console.log(`Emitted gameStarted event to room ${lobbyId}`);
+
+      // Add a small delay to ensure clients have processed the gameStarted event
+      setTimeout(() => {
+        this.broadcastGameState(lobbyId);
+        console.log(`Broadcast initial game state to room ${lobbyId}`);
+      }, 1000);
+
       // Update lobby status in database
-      await lobbiesCollection.updateOne(
-        { _id: new ObjectId(lobbyId) },
-        { $set: { status: 'in_progress' } }
-      );
-      
+      try {
+        await lobbiesCollection.updateOne(
+          { _id: new ObjectId(lobbyId) },
+          { $set: { status: 'in_progress' } }
+        );
+        console.log(`Updated lobby status to 'in_progress' in database`);
+      } catch (dbError) {
+        console.error(`Error updating lobby status: ${dbError}`);
+        // Continue even if database update fails
+      }
+
       return true;
     } catch (error) {
-      console.error('Start game error:', error);
+      console.error(`Start game error: ${error.message}`);
       return false;
     }
   }
