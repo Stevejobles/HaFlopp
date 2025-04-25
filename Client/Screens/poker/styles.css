@@ -7,7 +7,7 @@
 
 body {
   font-family: 'Inter', sans-serif;
-  background: radial-gradient(circle at center, #25a56a 0%, #1a7049 40%, #0d5c3a 100%);
+  background: #1f1f1f;
   color: white;
   min-height: 100vh;
   display: flex;
@@ -67,21 +67,21 @@ body {
   justify-content: center;
   align-items: center;
   position: relative;
-  padding: 80px 0;
+  padding: 40px 0;
 }
 
 /* Poker Table */
 .poker-table {
-  width: 75%;
-  height: 50vh;
-  max-height: 450px;
+  width: 80%;
+  height: 60vh;
+  max-height: 500px;
   background: #166e44;
-  border-radius: 50% / 40%;
+  border-radius: 180px / 120px;
   position: relative;
   box-shadow: 
     0 10px 30px rgba(0, 0, 0, 0.5),
     inset 0 0 80px rgba(0, 0, 0, 0.4);
-  border: 15px solid #704728;
+  border: 15px solid #333;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -116,25 +116,27 @@ body {
 /* Pot Styling */
 .pot {
   position: absolute;
-  top: 15%;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 15px 20px;
-  border-radius: 30px;
+  top: 35%;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 8px 16px;
+  border-radius: 20px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   z-index: 3;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .pot-amount {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
+  color: #72d668;
 }
 
 .pot-icon {
-  font-size: 30px;
-  color: #f0c14b;
+  font-size: 20px;
+  color: #72d668;
 }
 
 /* Community Cards */
@@ -150,20 +152,20 @@ body {
 
 /* Card Styling */
 .card {
-  width: 60px;
-  height: 85px;
+  width: 50px;
+  height: 70px;
   background: white;
-  border-radius: 6px;
+  border-radius: 4px;
   display: flex;
   justify-content: center;
   align-items: center;
   color: #000;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
   position: relative;
   transition: all 0.3s ease;
-  margin-right: -15px;
+  margin-right: -12px;
   transform-origin: bottom center;
 }
 
@@ -172,25 +174,31 @@ body {
 }
 
 .card.face-down {
-  background: linear-gradient(135deg, #85a895, #3d7b5e);
+  background: #1a82c5 url('https://i.imgur.com/NwZdytL.png') center/80% no-repeat;
   color: transparent;
+}
+
+.community-cards .card {
+  width: 55px;
+  height: 75px;
+  margin-right: -5px;
 }
 
 /* Player Seats Arrangement */
 .player-seats {
   position: absolute;
-  width: 130%;
-  height: 130%;
-  top: -15%;
-  left: -15%;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
   pointer-events: none;
   z-index: 3;
 }
 
 .player-seat {
   position: absolute;
-  width: 220px;
-  height: 180px;
+  width: 180px;
+  height: 120px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -198,37 +206,39 @@ body {
   pointer-events: auto;
 }
 
-/* Player Seat Positions - Just at the table edge (like GGPoker) */
+/* Player Seat Positions - Exactly like GGPoker */
 #seat-0 {
-  bottom: -5px; /* Current player (bottom) */
+  bottom: -55px; /* Current player (bottom center) */
   left: 50%;
   transform: translateX(-50%);
 }
 
 #seat-1 {
-  top: 10%;  /* Top Left */
-  left: 10%;
+  top: 15%; /* Top Left */
+  left: 5%;
 }
 
 #seat-2 {
-  top: -5px; /* Top */
+  top: -55px; /* Top Center */
   left: 50%;
   transform: translateX(-50%);
 }
 
 #seat-3 {
-  top: 10%; /* Top Right */
-  right: 10%;
+  top: 15%; /* Top Right */
+  right: 5%;
 }
 
 #seat-4 {
-  bottom: 20%; /* Bottom Right */
-  right: -5px;
+  bottom: 50%; /* Bottom Right */
+  right: -65px;
+  transform: translateY(50%);
 }
 
 #seat-5 {
-  bottom: 20%; /* Bottom Left */
-  left: -5px;
+  bottom: 50%; /* Bottom Left */
+  left: -65px;
+  transform: translateY(50%);
 }
 
 /* Player Styling */
@@ -246,7 +256,7 @@ body {
 
 .player-cards {
   display: flex;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
   perspective: 500px;
 }
 
@@ -258,51 +268,78 @@ body {
 
 /* Player info styling */
 .player-info {
-  background: rgba(0, 0, 0, 0.7);
-  padding: 10px 15px;
-  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 6px 12px;
+  border-radius: 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 120px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  min-width: 100px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
   transition: all 0.2s ease;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .player-info:hover {
   transform: translateY(-2px);
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
 }
 
 .player-name {
   font-weight: 600;
-  font-size: 15px;
-  margin-bottom: 4px;
+  font-size: 14px;
+  margin-bottom: 2px;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
-  max-width: 120px;
+  max-width: 100px;
 }
 
 .player-chips {
-  color: #f0c14b;
+  color: #72d668;
   font-weight: 500;
-  font-size: 14px;
+  font-size: 13px;
 }
 
+/* Player bet display */
 .player-bet {
   position: absolute;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 5px 10px;
-  border-radius: 15px;
-  font-size: 14px;
-  margin-top: 10px;
-  top: 45%;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #72d668;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .player-bet.hidden {
   display: none;
+}
+
+/* Position the bet amounts relative to each player */
+#seat-0 .player-bet {
+  top: -20px;
+}
+
+#seat-1 .player-bet {
+  bottom: -20px;
+}
+
+#seat-2 .player-bet {
+  bottom: -20px;
+}
+
+#seat-3 .player-bet {
+  bottom: -20px;
+}
+
+#seat-4 .player-bet {
+  left: -40px;
+}
+
+#seat-5 .player-bet {
+  right: -40px;
 }
 
 /* Current Player Styling */
