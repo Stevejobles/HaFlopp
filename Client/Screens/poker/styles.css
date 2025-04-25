@@ -72,9 +72,9 @@ body {
 
 /* Poker Table */
 .poker-table {
-  width: 65%;
-  height: 45vh;
-  max-height: 400px;
+  width: 75%;
+  height: 50vh;
+  max-height: 450px;
   background: #166e44;
   border-radius: 50% / 40%;
   position: relative;
@@ -150,20 +150,20 @@ body {
 
 /* Card Styling */
 .card {
-  width: 70px;
-  height: 100px;
+  width: 60px;
+  height: 85px;
   background: white;
-  border-radius: 8px;
+  border-radius: 6px;
   display: flex;
   justify-content: center;
   align-items: center;
   color: #000;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
   position: relative;
   transition: all 0.3s ease;
-  margin-right: -10px;
+  margin-right: -15px;
   transform-origin: bottom center;
 }
 
@@ -179,10 +179,10 @@ body {
 /* Player Seats Arrangement */
 .player-seats {
   position: absolute;
-  width: 200%;
-  height: 200%;
-  top: -50%;
-  left: -50%;
+  width: 130%;
+  height: 130%;
+  top: -15%;
+  left: -15%;
   pointer-events: none;
   z-index: 3;
 }
@@ -198,37 +198,37 @@ body {
   pointer-events: auto;
 }
 
-/* Player Seat Positions - COMPLETELY Outside Table */
+/* Player Seat Positions - Just at the table edge (like GGPoker) */
 #seat-0 {
-  bottom: 10%; /* Current player (bottom) */
+  bottom: -5px; /* Current player (bottom) */
   left: 50%;
   transform: translateX(-50%);
 }
 
 #seat-1 {
-  top: 20%;  /* Top Left */
-  left: 20%;
+  top: 10%;  /* Top Left */
+  left: 10%;
 }
 
 #seat-2 {
-  top: 10%; /* Top */
+  top: -5px; /* Top */
   left: 50%;
   transform: translateX(-50%);
 }
 
 #seat-3 {
-  top: 20%; /* Top Right */
-  right: 20%;
+  top: 10%; /* Top Right */
+  right: 10%;
 }
 
 #seat-4 {
-  bottom: 35%; /* Bottom Right */
-  right: 15%;
+  bottom: 20%; /* Bottom Right */
+  right: -5px;
 }
 
 #seat-5 {
-  bottom: 35%; /* Bottom Left */
-  left: 15%;
+  bottom: 20%; /* Bottom Left */
+  left: -5px;
 }
 
 /* Player Styling */
@@ -241,7 +241,7 @@ body {
 }
 
 .player.hidden {
-  opacity: 0.5;
+  opacity: 0.7;
 }
 
 .player-cards {
@@ -250,27 +250,35 @@ body {
   perspective: 500px;
 }
 
+/* Visual enhancements for active player */
+.player.active-player .player-info {
+  outline: 2px solid gold;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
+}
+
+/* Player info styling */
 .player-info {
   background: rgba(0, 0, 0, 0.7);
-  padding: 12px 18px;
-  border-radius: 10px;
+  padding: 10px 15px;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 150px;
+  min-width: 120px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .player-info:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
 }
 
 .player-name {
   font-weight: 600;
-  font-size: 16px;
-  margin-bottom: 5px;
+  font-size: 15px;
+  margin-bottom: 4px;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
@@ -280,6 +288,7 @@ body {
 .player-chips {
   color: #f0c14b;
   font-weight: 500;
+  font-size: 14px;
 }
 
 .player-bet {
