@@ -71,9 +71,9 @@ body {
 
 /* Poker Table */
 .poker-table {
-  width: 90%;
-  height: 70vh;
-  max-height: 600px;
+  width: 80%;
+  height: 55vh;
+  max-height: 500px;
   background: #166e44;
   border-radius: 50% / 40%;
   position: relative;
@@ -86,6 +86,7 @@ body {
   align-items: center;
   overflow: visible;
   transition: all 0.3s ease;
+  z-index: 1;
 }
 
 /* Table Border Effects */
@@ -177,10 +178,10 @@ body {
 /* Player Seats Arrangement */
 .player-seats {
   position: absolute;
-  width: 100%;
-  height: 100%;
-  top: 0;
-  left: 0;
+  width: 140%;
+  height: 140%;
+  top: -20%;
+  left: -20%;
 }
 
 .player-seat {
@@ -193,36 +194,36 @@ body {
   transition: all 0.3s ease;
 }
 
-/* Player Seat Positions */
+/* Player Seat Positions - Completely Outside Table */
 #seat-0 {
-  bottom: -60px; /* Current player (bottom) */
+  bottom: 0; /* Current player (bottom) */
   left: 50%;
   transform: translateX(-50%);
 }
 
 #seat-1 {
-  top: 5%;  /* Top Left */
-  left: 15%;
+  top: 15%;  /* Top Left */
+  left: 10%;
 }
 
 #seat-2 {
-  top: -30px; /* Top */
+  top: 0; /* Top */
   left: 50%;
   transform: translateX(-50%);
 }
 
 #seat-3 {
-  top: 5%; /* Top Right */
-  right: 15%;
+  top: 15%; /* Top Right */
+  right: 10%;
 }
 
 #seat-4 {
-  bottom: 10%; /* Bottom Right */
+  bottom: 30%; /* Bottom Right */
   right: 0;
 }
 
 #seat-5 {
-  bottom: 10%; /* Bottom Left */
+  bottom: 30%; /* Bottom Left */
   left: 0;
 }
 
@@ -232,6 +233,7 @@ body {
   flex-direction: column;
   align-items: center;
   transition: all 0.3s ease;
+  z-index: 5;
 }
 
 .player.hidden {
@@ -442,8 +444,8 @@ body {
 /* Responsive Design */
 @media (max-width: 900px) {
   .poker-table {
-    width: 95%;
-    height: 60vh;
+    width: 75%;
+    height: 50vh;
   }
   
   .card {
@@ -465,11 +467,19 @@ body {
   .player-name {
     font-size: 14px;
   }
+  
+  .player-seats {
+    width: 150%;
+    height: 150%;
+    top: -25%;
+    left: -25%;
+  }
 }
 
 @media (max-width: 700px) {
   .poker-table {
-    height: 50vh;
+    height: 45vh;
+    width: 70%;
   }
   
   .card {
@@ -486,6 +496,13 @@ body {
   .game-controls {
     flex-wrap: wrap;
     justify-content: center;
+  }
+  
+  .player-seats {
+    width: 160%;
+    height: 160%;
+    top: -30%;
+    left: -30%;
   }
   
   #seat-1 { /* Adjust position for smaller screens */
