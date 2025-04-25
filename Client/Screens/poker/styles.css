@@ -97,9 +97,9 @@ body {
     margin-bottom: 40px;
     background: rgba(0, 0, 0, 0.2);
     padding: 20px;
-    width: 800px;
-    height: 450px;
-    border-radius: 400px / 250px;
+    width: 900px;
+    height: 550px; 
+    border-radius: 450px / 300px; 
     display: flex;
     align-items: center;
     justify-content: center;
@@ -134,65 +134,85 @@ body {
     pointer-events: none;
   }
   
-    /* Current player (bottom position) */
-    .user.me {
-      position: absolute;
-      left: 50%;
-      bottom: -80px; /* Position at bottom arrow */
-      transform: translateX(-50%);
-    }
-    
-    /* Bottom left position */
-    .table .other-users .user:nth-of-type(1) {
-      position: absolute;
-      left: 15%;
-      bottom: -60px; /* Position at bottom left arrow */
-    }
-    
-    /* Left position */
-    .table .other-users .user:nth-of-type(2) {
-      position: absolute;
-      left: -100px; /* Position at left arrow */
-      top: 50%;
-      transform: translateY(-50%);
-    }
-    
-    /* Top position */
-    .table .other-users .user:nth-of-type(3) {
-      position: absolute;
-      left: 50%;
-      top: -80px; /* Position at top arrow */
-      transform: translateX(-50%);
-    }
-    
-    /* Right position */
-    .table .other-users .user:nth-of-type(4) {
-      position: absolute;
-      right: -100px; /* Position at right arrow */
-      top: 50%;
-      transform: translateY(-50%);
-    }
-    
-    /* Bottom right position */
-    .table .other-users .user:nth-of-type(5) {
-      position: absolute;
-      right: 15%;
-      bottom: -60px; /* Position at bottom right arrow */
-    }
-    
-    /* Ensure card layout doesn't overlap with player info */
-    .table .user .cards {
-      margin-bottom: 10px;
-      display: flex;
-      justify-content: center;
-    }
-    
-    .table .user .card {
-      width: 60px; /* Make cards slightly smaller */
-      height: 84px;
-      margin: 0 -10px; /* Overlap the cards a bit */
-    }
+  .table .users {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    pointer-events: none; /* So clicks go through to the table */
+  }
   
+  .table .user {
+    position: absolute;
+    pointer-events: auto; /* Make the player elements clickable */
+  }
+  
+  /* Current user - bottom center */
+  .user.me {
+    left: 50%;
+    bottom: -120px; /* Position well below the table */
+    transform: translateX(-50%);
+  }
+  
+  /* Bottom left player */
+  .table .other-users .user:nth-of-type(1) {
+    left: 20%; 
+    bottom: -90px; /* Position below the table */
+    transform: translateX(-50%);
+  }
+  
+  /* Left side player */
+  .table .other-users .user:nth-of-type(2) {
+    left: -120px; /* Position to the left of the table */
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  
+  /* Top player */
+  .table .other-users .user:nth-of-type(3) {
+    left: 50%;
+    top: -120px; /* Position above the table */
+    transform: translateX(-50%);
+  }
+  
+  /* Right side player */
+  .table .other-users .user:nth-of-type(4) {
+    right: -120px; /* Position to the right of the table */
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  
+  /* Bottom right player */
+  .table .other-users .user:nth-of-type(5) {
+    right: 20%;
+    bottom: -90px; /* Position below the table */
+    transform: translateX(50%);
+  }
+  
+  /* Adjust card positioning to ensure they don't overlap */
+  .table .user .cards {
+    margin-bottom: 15px; /* Add more space between cards and user info */
+    display: flex;
+    justify-content: center;
+  }
+  
+  .table .user .card {
+    width: 65px;
+    height: 91px;
+    margin: 0 -10px; /* Create slight overlap between cards */
+  }
+
+    /* Ensure main content area has enough space */
+  .content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    padding: 150px 0;
+    /* Add vertical padding to accommodate players */
+  }
+
   .table .user .balance {
     opacity: 0.8;
     font-size: 16px;
