@@ -160,7 +160,7 @@ li {
 .user.me {
   position: absolute;
   left: 50%;
-  bottom: -80px;
+  bottom: -100px;
   transform: translateX(-50%);
 }
 
@@ -386,7 +386,7 @@ li {
 /* Game controls */
 .game-controls {
   position: absolute;
-  bottom: 20px;
+  bottom: -140px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
