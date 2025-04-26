@@ -9,6 +9,8 @@ class PokerGame {
     this.currentTurn = null;
     this.gameState = null;
     this.playerState = null;
+    this.maxPlayers = 6; // Maximum of 6 players per lobby (including current user)
+    this.maxOtherPlayers = 5; // Maximum of 5 other players (excluding current user)
 
     // DOM elements
     this.potElement = document.querySelector('.pot-number');
@@ -37,46 +39,43 @@ class PokerGame {
 
     // Socket connection
     this.socket = window.pokerSocket;
-    // In setupSocketCallbacks in game.js
-    console.log('Setting up socket callbacks with:', this.callbacks);
     this.setupSocketCallbacks();
 
     // Initialize
     this.init();
   }
 
-// Modified method in PokerGame class in game.js
-async init() {
-  try {
-    // Get the current user
-    const userResponse = await fetch('/api/user');
-    if (!userResponse.ok) {
-      window.location.href = '../login.html';
-      return;
+  async init() {
+    try {
+      // Get the current user
+      const userResponse = await fetch('/api/user');
+      if (!userResponse.ok) {
+        window.location.href = '../login.html';
+        return;
+      }
+      
+      const userData = await userResponse.json();
+      this.currentUser = userData.user;
+      
+      // Setup socket callbacks first
+      this.setupSocketCallbacks();
+      
+      // Then connect socket with user ID
+      this.socket.connectWithAuth(this.currentUser.id);
+      
+      // Disable all control buttons initially
+      this.updateControlButtons([]);
+      
+      // Show initial status
+      this.gameStatusElement.textContent = 'Connecting to game...';
+
+      // Initially clear other players container
+      this.clearOtherPlayers();
+    } catch (error) {
+      console.error('Initialization error:', error);
+      alert('Failed to initialize the game');
     }
-    
-    const userData = await userResponse.json();
-    this.currentUser = userData.user;
-    
-    // Setup socket callbacks first
-    this.setupSocketCallbacks();
-    
-    // Then connect socket with user ID
-    this.socket.connectWithAuth(this.currentUser.id);
-    
-    // The socket will automatically join the game room after connection
-    // in the onConnect callback
-    
-    // Disable all control buttons initially
-    this.updateControlButtons([]);
-    
-    // Show initial status
-    this.gameStatusElement.textContent = 'Connecting to game...';
-  } catch (error) {
-    console.error('Initialization error:', error);
-    alert('Failed to initialize the game');
   }
-}
 
   setupSocketCallbacks() {
     this.socket.setCallbacks({
@@ -104,6 +103,15 @@ async init() {
       onGameStarted: (data) => {
         console.log('Game started:', data);
         this.gameStatusElement.textContent = 'Game starting...';
+      },
+      
+      // Add handlers for player join/leave events
+      onPlayerJoin: (data) => {
+        this.handlePlayerJoin(data);
+      },
+      
+      onPlayerLeave: (data) => {
+        this.handlePlayerLeave(data);
       }
     });
   }
@@ -159,80 +167,117 @@ async init() {
     }
   }
 
+  clearOtherPlayers() {
+    // Clear the other users container
+    this.otherUsersContainer.innerHTML = '';
+  }
+
   renderPlayers(players) {
     if (!players || players.length === 0) return;
 
-    // Clear current players
+    // Clear current user
     const currentUserElement = document.querySelector('.user.me');
     if (currentUserElement) {
       currentUserElement.remove();
     }
-    this.otherUsersContainer.innerHTML = '';
+
+    // Clear all other players
+    this.clearOtherPlayers();
 
     // Find current user
     const currentPlayer = players.find(p => p.id === this.currentUser.id);
-
-    if (currentPlayer) {
-      // Create current user element
-      const userElement = document.createElement('div');
-      userElement.className = 'user me';
-
-      // Add player status classes
-      if (currentPlayer.folded) userElement.classList.add('folded');
-      if (currentPlayer.isAllIn) userElement.classList.add('allin');
-      if (currentPlayer.isCurrentTurn) userElement.classList.add('current-turn');
-
-      let cardsHtml = '';
-
-      // Show cards if available
-      if (this.playerState && this.playerState.hand) {
-        cardsHtml = `
-            <div class="cards">
-              <div class="card">
-                <div class="number">${this.formatCard(this.playerState.hand[0])}</div>
-              </div>
-              <div class="card">
-                <div class="number">${this.formatCard(this.playerState.hand[1])}</div>
-              </div>
-            </div>
-          `;
-      } else {
-        cardsHtml = `
-            <div class="cards">
-              <div class="card">
-                <div class="number">?</div>
-              </div>
-              <div class="card">
-                <div class="number">?</div>
-              </div>
-            </div>
-          `;
-      }
-
-      // Add player role indicators
-      let roleIndicator = '';
-      if (currentPlayer.isDealer) roleIndicator += '<span class="role dealer">D</span>';
-      if (currentPlayer.isSmallBlind) roleIndicator += '<span class="role small-blind">SB</span>';
-      if (currentPlayer.isBigBlind) roleIndicator += '<span class="role big-blind">BB</span>';
-
-      userElement.innerHTML = `
-          ${cardsHtml}
-          <div class="user-content">
-            <div class="name">${currentPlayer.username} ${roleIndicator}</div>
-            <div class="balance">$${currentPlayer.chips}</div>
-            ${currentPlayer.bet > 0 ? `<div class="current-bet">Bet: $${currentPlayer.bet}</div>` : ''}
-          </div>
-        `;
-
-      this.usersContainer.appendChild(userElement);
-    }
-
-    // Render other players
+    
+    // Filter other players (excluding current user)
     const otherPlayers = players.filter(p => p.id !== this.currentUser.id);
 
-    otherPlayers.forEach((player, index) => {
+    // Render current user
+    if (currentPlayer) {
+      this.renderCurrentPlayer(currentPlayer);
+    }
+
+    // Render other players with assigned seats
+    this.renderOtherPlayers(otherPlayers);
+  }
+
+  renderCurrentPlayer(player) {
+    // Create current user element
+    const userElement = document.createElement('div');
+    userElement.className = 'user me';
+
+    // Add player status classes
+    if (player.folded) userElement.classList.add('folded');
+    if (player.isAllIn) userElement.classList.add('allin');
+    if (player.isCurrentTurn) userElement.classList.add('current-turn');
+
+    let cardsHtml = '';
+
+    // Show cards if available
+    if (this.playerState && this.playerState.hand) {
+      cardsHtml = `
+          <div class="cards">
+            <div class="card">
+              <div class="number">${this.formatCard(this.playerState.hand[0])}</div>
+            </div>
+            <div class="card">
+              <div class="number">${this.formatCard(this.playerState.hand[1])}</div>
+            </div>
+          </div>
+        `;
+    } else {
+      cardsHtml = `
+          <div class="cards">
+            <div class="card">
+              <div class="number">?</div>
+            </div>
+            <div class="card">
+              <div class="number">?</div>
+            </div>
+          </div>
+        `;
+    }
+
+    // Add player role indicators
+    let roleIndicator = '';
+    if (player.isDealer) roleIndicator += '<span class="role dealer">D</span>';
+    if (player.isSmallBlind) roleIndicator += '<span class="role small-blind">SB</span>';
+    if (player.isBigBlind) roleIndicator += '<span class="role big-blind">BB</span>';
+
+    userElement.innerHTML = `
+        ${cardsHtml}
+        <div class="user-content">
+          <div class="name">${player.username} ${roleIndicator}</div>
+          <div class="balance">$${player.chips}</div>
+          ${player.bet > 0 ? `<div class="current-bet">Bet: $${player.bet}</div>` : ''}
+        </div>
+      `;
+
+    this.usersContainer.appendChild(userElement);
+  }
+
+  renderOtherPlayers(otherPlayers) {
+    // Clear existing players first
+    this.clearOtherPlayers();
+
+    // Determine how many seats to render based on actual player count
+    // If we have 3 players total (including current user), we need 2 other player seats
+    const totalPlayerCount = otherPlayers.length + 1; // +1 for current user
+    const seatsToRender = Math.min(this.maxOtherPlayers, otherPlayers.length);
+
+    console.log(`Rendering ${seatsToRender} seats for ${otherPlayers.length} other players (total: ${totalPlayerCount} players)`);
+
+    // Add a class to the container to indicate total player count for proper positioning
+    this.otherUsersContainer.className = `other-users players-${totalPlayerCount}`;
+
+    // Create player elements for each seat
+    for (let seatIndex = 0; seatIndex < seatsToRender; seatIndex++) {
+      const player = otherPlayers[seatIndex];
+      const seatNumber = seatIndex + 1; // Seat numbers are 1-based (1 to 5)
+
+      // Create the player element
       const playerElement = document.createElement('div');
-      playerElement.className = 'user';
+      playerElement.className = `user seat-${seatNumber}`;
+      playerElement.dataset.userId = player.id;
+      playerElement.classList.add('joining'); // Add animation class
 
       // Add player status classes
       if (player.folded) playerElement.classList.add('folded');
@@ -252,13 +297,51 @@ async init() {
           </div>
           <div class="user-content">
             <div class="name">${player.username} ${roleIndicator}</div>
-            <div class="balance">$${player.chips}</div>
-            ${player.bet > 0 ? `<div class="current-bet">Bet: $${player.bet}</div>` : ''}
+            <div class="balance">${player.chips}</div>
+            ${player.bet > 0 ? `<div class="current-bet">Bet: ${player.bet}</div>` : ''}
           </div>
         `;
 
       this.otherUsersContainer.appendChild(playerElement);
-    });
+      
+      // Remove animation class after animation completes
+      setTimeout(() => {
+        playerElement.classList.remove('joining');
+      }, 500);
+    }
+  }
+  
+  // Handle player joining the game
+  handlePlayerJoin(playerData) {
+    console.log('Player joined:', playerData);
+    
+    // Refresh game state to include the new player
+    if (this.socket) {
+      this.socket.joinGame(this.lobbyId);
+    }
+  }
+  
+  // Handle player leaving the game
+  handlePlayerLeave(playerData) {
+    console.log('Player left:', playerData);
+    
+    // Find the player element
+    const playerElement = document.querySelector(`.user[data-user-id="${playerData.userId}"]`);
+    
+    if (playerElement) {
+      // Add leaving animation
+      playerElement.classList.add('leaving');
+      
+      // Remove the player element after animation completes
+      setTimeout(() => {
+        playerElement.remove();
+        
+        // Refresh game state
+        if (this.socket) {
+          this.socket.joinGame(this.lobbyId);
+        }
+      }, 500);
+    }
   }
 
   updateGameStatus(gameState) {
@@ -276,25 +359,27 @@ async init() {
     } else {
       // Game in progress, show current round
       const currentPlayerName = gameState.players.find(p => p.isCurrentTurn)?.username || 'Unknown';
+      const isCurrentUserTurn = gameState.players.find(p => p.isCurrentTurn)?.id === this.currentUser.id;
+      const turnIndicator = isCurrentUserTurn ? 'Your turn' : `${currentPlayerName}'s turn`;
 
       switch (gameState.currentRound) {
         case 'pre-flop':
-          this.gameStatusElement.textContent = `Pre-flop betting round - ${currentPlayerName}'s turn`;
+          this.gameStatusElement.textContent = `Pre-flop betting round - ${turnIndicator}`;
           break;
         case 'flop':
-          this.gameStatusElement.textContent = `Flop betting round - ${currentPlayerName}'s turn`;
+          this.gameStatusElement.textContent = `Flop betting round - ${turnIndicator}`;
           break;
         case 'turn':
-          this.gameStatusElement.textContent = `Turn betting round - ${currentPlayerName}'s turn`;
+          this.gameStatusElement.textContent = `Turn betting round - ${turnIndicator}`;
           break;
         case 'river':
-          this.gameStatusElement.textContent = `River betting round - ${currentPlayerName}'s turn`;
+          this.gameStatusElement.textContent = `River betting round - ${turnIndicator}`;
           break;
         case 'showdown':
           this.gameStatusElement.textContent = 'Showdown!';
           break;
         default:
-          this.gameStatusElement.textContent = `Waiting for ${currentPlayerName}'s move...`;
+          this.gameStatusElement.textContent = `Waiting for ${turnIndicator}...`;
       }
     }
   }
@@ -305,6 +390,7 @@ async init() {
       btn.disabled = true;
       btn.classList.add('disabled');
     });
+    this.betAmountInput.disabled = true;
 
     // Enable only available actions
     availableActions.forEach(action => {
@@ -316,6 +402,7 @@ async init() {
         case 'check':
           this.checkBtn.disabled = false;
           this.checkBtn.classList.remove('disabled');
+          this.checkBtn.textContent = 'Check';
           break;
         case 'call':
           // For simplicity, we use check button for calls too
@@ -336,11 +423,6 @@ async init() {
       }
     });
 
-    // Reset check button text if no call action
-    if (!availableActions.includes('call')) {
-      this.checkBtn.textContent = 'Check';
-    }
-
     // Set min/max bet amount if betting is available
     if (availableActions.includes('bet') || availableActions.includes('raise')) {
       const currentPlayer = this.gameState.players.find(p => p.id === this.currentUser.id);
@@ -351,11 +433,11 @@ async init() {
         // Set min bet based on action
         if (availableActions.includes('bet')) {
           // Min bet is big blind
-          this.betAmountInput.min = this.gameState.bigBlindAmount;
-          this.betAmountInput.value = this.gameState.bigBlindAmount;
+          this.betAmountInput.min = this.gameState.bigBlindAmount || 10;
+          this.betAmountInput.value = this.gameState.bigBlindAmount || 10;
         } else if (availableActions.includes('raise')) {
           // Min raise is current bet * 2
-          const minRaise = this.gameState.currentBet * 2;
+          const minRaise = this.gameState.currentBet * 2 || 20;
           this.betAmountInput.min = minRaise;
           this.betAmountInput.value = minRaise;
         }
@@ -376,6 +458,7 @@ async init() {
       btn.disabled = true;
       btn.classList.add('disabled');
     });
+    this.betAmountInput.disabled = true;
 
     // Send action to server
     this.socket.sendAction(action, amount);
@@ -420,7 +503,7 @@ async init() {
     }
   }
 
-  // Use pokerSolver.js to evaluate a hand
+  // Use pokerSolver.js to evaluate a hand (if available)
   evaluateHand(holeCards, tableCards) {
     if (!window.Hand || !window.Game) {
       console.error('PokerSolver not loaded');
@@ -443,7 +526,6 @@ async init() {
   // Format hand name for display
   formatHandName(handEvaluation) {
     if (!handEvaluation) return 'Unknown hand';
-
     return handEvaluation.descr || handEvaluation.name;
   }
 }
