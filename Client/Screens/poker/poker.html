@@ -1,154 +1,119 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Haflop - Poker Table</title>
+  <title>HaFlop</title>
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-</head>
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+ 
+  </head>
 
 <body>
-  <!-- Back Button -->
-  <div class="back-button">
-    <span class="material-symbols-outlined">arrow_back</span>
+  <div class="back button">
+    <span class="material-symbols-outlined" style="margin-top: 1px;">
+      arrow_back
+    </span>
   </div>
 
-  <!-- Game Status -->
-  <div class="game-status">Waiting for players to join...</div>
+  <div class="content">
 
-  <!-- Main Poker Table Container -->
-  <div class="table-container">
-    <!-- The Poker Table -->
-    <div class="poker-table">
-      <!-- Pot Container -->
+    <div class="table">
+
       <div class="pot">
-        <span>Total Pot: </span>
-        <div class="pot-amount">$1.15</div>
+        <span class="pot-number">$500</span>
+        <span class="material-symbols-outlined" style="
+    font-size: 30px;
+    margin-top: 2.5px;
+    opacity: .8;">
+          poker_chip
+        </span>
       </div>
 
-      <!-- Community Cards -->
-      <div class="community-cards">
-        <div class="card">10♥</div>
-        <div class="card">6♦</div>
-        <div class="card">J♠</div>
-        <div class="card face-down"></div>
-        <div class="card face-down"></div>
+      <div class="users">
+        <div class="user me">
+          <div class="cards">
+            <div class="card">
+              <div class="number">3</div>
+            </div>
+            <div class="card">
+              <div class="number">2</div>
+            </div>
+          </div>
+          <div class="user-content">
+            <div class="name">stadfsdfsdf</div>
+            <div class="balance">$500</div>
+          </div>
+        </div>
+        <div class="other-users">
+          <div class="user">
+            <div class="cards">
+              <div class="card"></div>
+              <div class="card">
+              </div>
+            </div>
+            <div class="user-content">
+              <div class="name">stadfsdfsdf</div>
+              <div class="balance">$500</div>
+            </div>
+          </div>
+          <div class="user">
+            <div class="cards">
+              <div class="card"></div>
+              <div class="card">
+              </div>
+            </div>
+            <div class="user-content">
+              <div class="name">stadfsdfsdf</div>
+              <div class="balance">$500</div>
+            </div>
+          </div>
+          <div class="user">
+            <div class="cards">
+              <div class="card"></div>
+              <div class="card">
+              </div>
+            </div>
+            <div class="user-content">
+              <div class="name">stadfsdfsdf</div>
+              <div class="balance">$500</div>
+            </div>
+          </div>
+          <div class="user">
+            <div class="cards">
+              <div class="card"></div>
+              <div class="card">
+              </div>
+            </div>
+            <div class="user-content">
+              <div class="name">stadfsdfsdf</div>
+              <div class="balance">$500</div>
+            </div>
+          </div>
+          <div class="user">
+            <div class="cards">
+              <div class="card"></div>
+              <div class="card">
+              </div>
+            </div>
+            <div class="user-content">
+              <div class="name">stadfsdfsdf</div>
+              <div class="balance">$500</div>
+            </div>
+          </div>
+        </div>
       </div>
+
     </div>
 
-<!-- Player Seats - Positioned exactly like GGPoker -->
-    <div class="player-seats">
-      <!-- Player 1 (Top Left) -->
-      <div class="player-seat" id="seat-1">
-        <div class="player">
-          <div class="player-cards">
-            <div class="card face-down"></div>
-            <div class="card face-down"></div>
-          </div>
-          <div class="player-info">
-            <div class="player-name">Star-Lord</div>
-            <div class="player-chips">$10.00</div>
-          </div>
-          <div class="player-bet">$0.10</div>
-        </div>
-      </div>
-
-      <!-- Player 2 (Top) -->
-      <div class="player-seat" id="seat-2">
-        <div class="player">
-          <div class="player-cards">
-            <div class="card face-down"></div>
-            <div class="card face-down"></div>
-          </div>
-          <div class="player-info">
-            <div class="player-name">mishavoinn</div>
-            <div class="player-chips">$11.22</div>
-          </div>
-          <div class="player-bet hidden">$0</div>
-        </div>
-      </div>
-
-      <!-- Player 3 (Top Right) -->
-      <div class="player-seat" id="seat-3">
-        <div class="player">
-          <div class="player-cards">
-            <div class="card face-down"></div>
-            <div class="card face-down"></div>
-          </div>
-          <div class="player-info">
-            <div class="player-name">GOGOHong</div>
-            <div class="player-chips">$16.15</div>
-          </div>
-          <div class="player-bet hidden">$0</div>
-        </div>
-      </div>
-
-      <!-- Player 4 (Bottom Right) -->
-      <div class="player-seat" id="seat-4">
-        <div class="player">
-          <div class="player-cards">
-            <div class="card face-down"></div>
-            <div class="card face-down"></div>
-          </div>
-          <div class="player-info">
-            <div class="player-name">LogicMan</div>
-            <div class="player-chips">$10.78</div>
-          </div>
-          <div class="player-bet hidden">$0</div>
-        </div>
-      </div>
-
-      <!-- Player 5 (Bottom Left) -->
-      <div class="player-seat" id="seat-5">
-        <div class="player">
-          <div class="player-cards">
-            <div class="card face-down"></div>
-            <div class="card face-down"></div>
-          </div>
-          <div class="player-info">
-            <div class="player-name">leo sing</div>
-            <div class="player-chips">$7.26</div>
-          </div>
-          <div class="player-bet">$0.25</div>
-        </div>
-      </div>
-
-      <!-- Current Player (Me) - Always at Bottom -->
-      <div class="player-seat user-seat" id="seat-0">
-        <div class="player active-player" id="current-player">
-          <div class="player-cards">
-            <div class="card">A♠</div>
-            <div class="card">K♠</div>
-          </div>
-          <div class="player-info">
-            <div class="player-name">ayo_yo</div>
-            <div class="player-chips">$13.11</div>
-          </div>
-          <div class="player-bet">$0.10</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Game Controls (Bottom of Screen) -->
-    <div class="game-controls">
-      <button class="control-btn" id="fold-btn">Fold</button>
-      <button class="control-btn" id="check-btn">Check</button>
-      <div class="bet-controls">
-        <input type="number" id="bet-amount" class="bet-input" min="10" step="10" value="10">
-        <button class="control-btn" id="bet-btn">Bet</button>
-        <button class="control-btn" id="raise-btn">Raise</button>
-      </div>
-    </div>
   </div>
 
-  <!-- Scripts -->
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" integrity="sha384-mZLF4UVrpi/QTWPA7BjNPEnkIfRFn4ZEO3Qt/HFklTJBj/gBOV8G3HcKn4NfQblz" crossorigin="anonymous"></script>
-  <script src="../../pokerSolver.js"></script>
-  <script src="socket-client.js"></script>
-  <script src="game.js"></script>
+  <script src="main.js"></script>
+
 </body>
+
 </html>
