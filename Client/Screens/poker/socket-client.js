@@ -119,6 +119,17 @@ class PokerSocketClient {
       }
     });
     
+    // Add event for chat history
+    this.socket.on('chatHistory', (data) => {
+      console.log('Chat history received:', data);
+      
+      if (this.callbacks.onChatHistory && data.history) {
+        data.history.forEach(msg => {
+          this.callbacks.onChatMessage(msg);
+        });
+      }
+    });
+    
     // Add event for player actions
     this.socket.on('playerAction', (data) => {
       console.log('Player action received:', data);

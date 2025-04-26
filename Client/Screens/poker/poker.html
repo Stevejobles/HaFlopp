@@ -23,7 +23,7 @@
     <div class="content">
       <div class="table">
         <div class="pot">
-          <span class="pot-number">$500</span>
+          <span class="pot-number">$0</span>
           <span class="material-symbols-outlined" style="font-size: 30px; margin-top: 2.5px; opacity: .8;">
             poker_chip
           </span>
@@ -54,7 +54,7 @@
             </div>
             <div class="user-content">
               <div class="name">You</div>
-              <div class="balance">$500</div>
+              <div class="balance">$1000</div>
               <div class="player-action hidden"></div>
             </div>
           </div>
@@ -69,24 +69,24 @@
       <!-- Player action bar - new feature -->
       <div class="player-actions">
         <div class="action-buttons">
-          <button id="fold-btn" class="action-btn fold-btn">Fold</button>
-          <button id="check-btn" class="action-btn check-btn">Check</button>
+          <button id="fold-btn" class="action-btn fold-btn disabled" disabled>Fold</button>
+          <button id="check-btn" class="action-btn check-btn disabled" disabled>Check</button>
           <div class="bet-controls">
             <div class="bet-amount-container">
-              <input type="number" id="bet-amount" min="10" max="1000" value="10">
+              <input type="number" id="bet-amount" min="10" max="1000" value="10" disabled>
               <div class="bet-amount-controls">
                 <button id="bet-increase" class="bet-control-btn">+</button>
                 <button id="bet-decrease" class="bet-control-btn">-</button>
               </div>
             </div>
-            <button id="bet-btn" class="action-btn bet-btn">Bet</button>
-            <button id="raise-btn" class="action-btn raise-btn">Raise</button>
+            <button id="bet-btn" class="action-btn bet-btn disabled" disabled>Bet</button>
+            <button id="raise-btn" class="action-btn raise-btn disabled" disabled>Raise</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Chat system - new feature -->
+    <!-- Chat system -->
     <div class="chat-container">
       <div class="chat-header">
         <h3>Table Chat</h3>

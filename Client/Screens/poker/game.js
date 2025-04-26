@@ -42,15 +42,19 @@ class PokerGame {
     this.checkBtn.addEventListener('click', () => this.handleAction('check'));
     this.betBtn.addEventListener('click', () => this.handleAction('bet', parseInt(this.betAmountInput.value, 10)));
     this.raiseBtn.addEventListener('click', () => this.handleAction('raise', parseInt(this.betAmountInput.value, 10)));
-    
+
     // Event listeners for bet amount controls
     this.betIncreaseBtn.addEventListener('click', () => this.adjustBetAmount(10));
     this.betDecreaseBtn.addEventListener('click', () => this.adjustBetAmount(-10));
-    
+
     // Event listeners for chat
-    this.sendMessageBtn.addEventListener('click', this.sendChatMessage.bind(this));
+    this.sendMessageBtn.addEventListener('click', () => {
+      this.sendChatMessage();
+    });
+    
     this.chatInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
+        e.preventDefault();
         this.sendChatMessage();
       }
     });
@@ -71,25 +75,25 @@ class PokerGame {
         window.location.href = '../login.html';
         return;
       }
-      
+
       const userData = await userResponse.json();
       this.currentUser = userData.user;
-      
+
       // Setup socket callbacks first
       this.setupSocketCallbacks();
-      
+
       // Then connect socket with user ID
       this.socket.connectWithAuth(this.currentUser.id);
-      
+
       // Disable all action buttons initially
       this.updateActionButtons([]);
-      
+
       // Show initial status
       this.gameStatusElement.textContent = 'Connecting to game...';
 
       // Initially clear other players container
       this.clearOtherPlayers();
-      
+
       // Scroll chat to bottom
       this.scrollChatToBottom();
     } catch (error) {
@@ -110,15 +114,17 @@ class PokerGame {
       onDisconnect: () => {
         console.log('Disconnected from server');
         this.gameStatusElement.textContent = 'Disconnected from server';
+        this.addSystemMessage('Disconnected from server. Please refresh the page.');
       },
 
       onGameState: (data) => {
+        console.log('Game state update:', data);
         this.updateGameState(data.gameState, data.playerState);
       },
 
       onError: (error) => {
         console.error('Game error:', error);
-        alert(error.message || 'An error occurred');
+        this.addSystemMessage(`Error: ${error.message || 'An unknown error occurred'}`);
       },
 
       onGameStarted: (data) => {
@@ -129,20 +135,24 @@ class PokerGame {
       
       // Add handlers for player join/leave events
       onPlayerJoin: (data) => {
+        console.log('Player joined:', data);
         this.handlePlayerJoin(data);
       },
       
       onPlayerLeave: (data) => {
+        console.log('Player left:', data);
         this.handlePlayerLeave(data);
       },
       
       // Add handler for chat messages
       onChatMessage: (data) => {
+        console.log('Chat message received:', data);
         this.receiveChatMessage(data);
       },
       
       // Add handler for player actions
       onPlayerAction: (data) => {
+        console.log('Player action received:', data);
         this.updatePlayerAction(data);
       }
     });
@@ -152,8 +162,10 @@ class PokerGame {
     this.gameState = gameState;
     this.playerState = playerState;
 
-    // Update pot
-    this.potElement.textContent = `$${gameState.pot}`;
+    // Update pot - make sure it's dynamic and changing based on player bets
+    if (gameState.pot !== undefined) {
+      this.potElement.textContent = `$${gameState.pot}`;
+    }
 
     // Update table cards
     this.updateTableCards(gameState.tableCards);
@@ -218,7 +230,7 @@ class PokerGame {
 
     // Find current user
     const currentPlayer = players.find(p => p.id === this.currentUser.id);
-    
+
     // Filter other players (excluding current user)
     const otherPlayers = players.filter(p => p.id !== this.currentUser.id);
 
@@ -301,28 +313,18 @@ class PokerGame {
     // Clear existing players first
     this.clearOtherPlayers();
 
-    // Determine how many seats to render based on actual player count
-    // If we have 3 players total (including current user), we need 2 other player seats
-    const totalPlayerCount = otherPlayers.length + 1; // +1 for current user
-    const seatsToRender = Math.min(this.maxOtherPlayers, otherPlayers.length);
+    console.log(`Rendering ${otherPlayers.length} other players`);
 
-    console.log(`Rendering ${seatsToRender} seats for ${otherPlayers.length} other players (total: ${totalPlayerCount} players)`);
-
-    // Add a class to the container to indicate total player count for proper positioning
-    this.otherUsersContainer.className = `other-users players-${totalPlayerCount}`;
-
-    // Create player elements for each seat
-    for (let seatIndex = 0; seatIndex < seatsToRender; seatIndex++) {
-      const player = otherPlayers[seatIndex];
-      const seatNumber = seatIndex + 1; // Seat numbers are 1-based (1 to 5)
-
-      // Create the player element
+    // Create player elements for each player
+    // The positioning will be handled by the CSS nth-of-type selectors
+    otherPlayers.forEach((player, index) => {
+      // Create the player element - DO NOT add any position classes here
+      // Let CSS :nth-of-type selectors handle positioning
       const playerElement = document.createElement('div');
-      playerElement.className = `user seat-${seatNumber}`;
+      playerElement.className = 'user';
       playerElement.dataset.userId = player.id;
-      playerElement.classList.add('joining'); // Add animation class
 
-      // Add player status classes
+      // Add status classes, but NOT position classes
       if (player.folded) playerElement.classList.add('folded');
       if (player.isAllIn) playerElement.classList.add('allin');
       if (player.isCurrentTurn) playerElement.classList.add('current-turn');
@@ -349,52 +351,47 @@ class PokerGame {
           </div>
           <div class="user-content">
             <div class="name">${player.username} ${roleIndicator}</div>
-            <div class="balance">${player.chips}</div>
-            ${player.bet > 0 ? `<div class="current-bet">Bet: ${player.bet}</div>` : ''}
+            <div class="balance">$${player.chips}</div>
+            ${player.bet > 0 ? `<div class="current-bet">Bet: $${player.bet}</div>` : ''}
             ${actionDisplay}
           </div>
         `;
 
       this.otherUsersContainer.appendChild(playerElement);
-      
-      // Remove animation class after animation completes
-      setTimeout(() => {
-        playerElement.classList.remove('joining');
-      }, 500);
-    }
+    });
   }
-  
+
   // Handle player joining the game
   handlePlayerJoin(playerData) {
     console.log('Player joined:', playerData);
-    
+
     // Add system message to chat
     this.addSystemMessage(`${playerData.username || 'A player'} has joined the table.`);
-    
+
     // Refresh game state to include the new player
     if (this.socket) {
       this.socket.joinGame(this.lobbyId);
     }
   }
-  
+
   // Handle player leaving the game
   handlePlayerLeave(playerData) {
     console.log('Player left:', playerData);
-    
+
     // Add system message to chat
     this.addSystemMessage(`${playerData.username || 'A player'} has left the table.`);
-    
+
     // Find the player element
     const playerElement = document.querySelector(`.user[data-user-id="${playerData.userId}"]`);
-    
+
     if (playerElement) {
       // Add leaving animation
       playerElement.classList.add('leaving');
-      
+
       // Remove the player element after animation completes
       setTimeout(() => {
         playerElement.remove();
-        
+
         // Refresh game state
         if (this.socket) {
           this.socket.joinGame(this.lobbyId);
@@ -510,7 +507,7 @@ class PokerGame {
     const currentValue = parseInt(this.betAmountInput.value, 10) || 0;
     const min = parseInt(this.betAmountInput.min, 10) || 0;
     const max = parseInt(this.betAmountInput.max, 10) || 1000;
-    
+
     // Calculate new value while staying within bounds
     let newValue = Math.max(min, Math.min(currentValue + delta, max));
     this.betAmountInput.value = newValue;
@@ -545,10 +542,10 @@ class PokerGame {
   // Update player action display
   updatePlayerAction(data) {
     const { userId, action, amount } = data;
-    
+
     let actionText = '';
     let actionType = '';
-    
+
     switch (action) {
       case 'fold':
         actionText = 'Folded';
@@ -577,28 +574,28 @@ class PokerGame {
       default:
         return;
     }
-    
+
     // Store the player action
     this.playerActions[userId] = {
       type: actionType,
       text: actionText
     };
-    
+
     // Update player elements
     this.updatePlayerActionElements(userId, actionType, actionText);
-    
+
     // Add action to chat
-    const playerName = userId === this.currentUser.id ? 'You' : 
-                      this.gameState?.players.find(p => p.id === userId)?.username || 'Player';
+    const playerName = userId === this.currentUser.id ? 'You' :
+      this.gameState?.players.find(p => p.id === userId)?.username || 'Player';
     this.addSystemMessage(`${playerName} ${actionText.toLowerCase()}`);
   }
-  
+
   // Update player action elements in the DOM
   updatePlayerActionElements(userId, actionType, actionText) {
     // Find player element
     const playerElement = document.querySelector(`.user[data-user-id="${userId}"]`);
     if (!playerElement) return;
-    
+
     // Find or create action element
     let actionElement = playerElement.querySelector('.player-action');
     if (!actionElement) {
@@ -606,14 +603,14 @@ class PokerGame {
       actionElement.className = 'player-action';
       playerElement.querySelector('.user-content').appendChild(actionElement);
     }
-    
+
     // Update action element
     actionElement.textContent = actionText;
     actionElement.className = `player-action ${actionType}`;
-    
+
     // Remove hidden class
     actionElement.classList.remove('hidden');
-    
+
     // Clear action after a delay (except for fold)
     if (actionType !== 'folded') {
       setTimeout(() => {
@@ -656,88 +653,138 @@ class PokerGame {
   }
 
   // Send a chat message
+  // Send a chat message
   sendChatMessage() {
     const message = this.chatInput.value.trim();
     if (!message) return;
     
+    console.log("Sending chat message:", message);
+    
     // Clear input
     this.chatInput.value = '';
     
-    // Add message to chat locally
-    this.addChatMessage({
+    // Get timestamp
+    const timestamp = new Date().toISOString();
+    
+    // Create message data
+    const messageData = {
       userId: this.currentUser.id,
       username: this.currentUser.username || 'You',
       message,
-      timestamp: new Date().toISOString(),
+      timestamp,
       isSelf: true
-    });
+    };
     
-    // Send message to server
-    this.socket.emit('chatMessage', {
-      lobbyId: this.lobbyId,
-      message
-    });
+    // Add message to chat locally immediately
+    this.addChatMessage(messageData);
+    
+    // Send message to server through socket
+    if (this.socket && this.socket.isSocketConnected()) {
+      this.socket.sendChatMessage(message);
+    } else {
+      console.error("Socket not connected, can't send chat message");
+      this.addSystemMessage("Message not sent - connection issues");
+    }
   }
-  
+
   // Receive a chat message from the server
   receiveChatMessage(data) {
+    console.log("Received chat message:", data);
+
     // Skip own messages (we already added them locally)
     if (data.userId === this.currentUser.id) return;
-    
+
     // Add message to chat
     this.addChatMessage({
       ...data,
       isSelf: false
     });
   }
-  
+
   // Add a chat message to the display
   addChatMessage(data) {
     const { userId, username, message, timestamp, isSelf } = data;
-    
+
     // Create message element
     const messageElement = document.createElement('div');
     messageElement.className = `chat-message ${isSelf ? 'my-message' : 'other-message'}`;
-    
+
     // Format timestamp
     const time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
+
+    // Set content
+    messageElement.innerHTML = `
+    <div class="message-sender">${username}</div>
+    <div class="message-content">${this.escapeHTML(message)}</div>
+    <div class="message-time">${time}</div>
+  `;
+
+    // Add to container
+    this.chatMessagesContainer.appendChild(messageElement);
+
+    // Scroll to bottom
+    this.scrollChatToBottom();
+  }
+
+  // Receive a chat message from the server
+  receiveChatMessage(data) {
+    // Skip own messages (we already added them locally)
+    if (data.userId === this.currentUser.id) return;
+
+    // Add message to chat
+    this.addChatMessage({
+      ...data,
+      isSelf: false
+    });
+  }
+
+  // Add a chat message to the display
+  addChatMessage(data) {
+    const { userId, username, message, timestamp, isSelf } = data;
+
+    // Create message element
+    const messageElement = document.createElement('div');
+    messageElement.className = `chat-message ${isSelf ? 'my-message' : 'other-message'}`;
+
+    // Format timestamp
+    const time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     // Set content
     messageElement.innerHTML = `
       <div class="message-sender">${username}</div>
       <div class="message-content">${this.escapeHTML(message)}</div>
       <div class="message-time">${time}</div>
     `;
-    
+
     // Add to container
     this.chatMessagesContainer.appendChild(messageElement);
-    
+
     // Scroll to bottom
     this.scrollChatToBottom();
   }
-  
+
   // Add a system message to the chat
   addSystemMessage(message) {
     const messageElement = document.createElement('div');
     messageElement.className = 'system-message';
     messageElement.textContent = message;
-    
+
     this.chatMessagesContainer.appendChild(messageElement);
     this.scrollChatToBottom();
   }
-  
+
   // Scroll chat container to the bottom
   scrollChatToBottom() {
     this.chatMessagesContainer.scrollTop = this.chatMessagesContainer.scrollHeight;
   }
-  
+
   // Escape HTML to prevent XSS in chat
   escapeHTML(text) {
     return text.replace(/&/g, '&amp;')
-               .replace(/</g, '&lt;')
-               .replace(/>/g, '&gt;')
-               .replace(/"/g, '&quot;')
-               .replace(/'/g, '&#039;');
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
   handleBackButton() {
