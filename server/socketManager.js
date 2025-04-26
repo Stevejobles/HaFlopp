@@ -18,6 +18,9 @@ class SocketManager {
     this.db = db;
     this.userSockets = new Map(); // Map of userId -> socket
     this.roomToGame = new Map(); // Map of lobbyId -> game state
+    this.playerRooms = new Map(); // Map of userId -> lobbyId (to track which room each player is in)
+    this.playerNames = new Map(); // Map of userId -> username
+    this.chatHistory = new Map(); // Map of lobbyId -> array of chat messages
     
     this.setupSocketMiddleware();
     this.setupEventHandlers();
@@ -106,16 +109,49 @@ class SocketManager {
       this.userSockets.set(userId, socket);
       
       // Handle joining a game room
-      socket.on('joinGame', (lobbyId) => {
+      socket.on('joinGame', async (lobbyId) => {
         console.log(`Attempt to join game: ${lobbyId} by user: ${userId}`);
+        
+        // Fetch user information to store username
+        try {
+          const usersCollection = this.db.collection("users");
+          const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+          if (user) {
+            this.playerNames.set(userId, user.username);
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        }
+        
         // Leave any previous rooms
-        Array.from(socket.rooms)
-          .filter(room => room !== socket.id)
-          .forEach(room => socket.leave(room));
+        if (this.playerRooms.has(userId)) {
+          const previousRoomId = this.playerRooms.get(userId);
+          if (previousRoomId !== lobbyId) {
+            await this.handlePlayerLeaving(userId, previousRoomId);
+            socket.leave(previousRoomId);
+          }
+        }
 
         // Join the new room
         socket.join(lobbyId);
+        this.playerRooms.set(userId, lobbyId);
         console.log(`User ${userId} joined room ${lobbyId}`);
+
+        // Get username
+        const username = this.playerNames.get(userId) || 'Player';
+
+        // Notify other players in the room that a new player has joined
+        socket.to(lobbyId).emit('playerJoined', {
+          userId: userId,
+          username: username,
+          lobbyId: lobbyId
+        });
+
+        // Send chat history to the new player
+        if (this.chatHistory.has(lobbyId)) {
+          const history = this.chatHistory.get(lobbyId);
+          socket.emit('chatHistory', { history });
+        }
 
         // If there's an active game for this lobby, send game state
         if (this.roomToGame.has(lobbyId)) {
@@ -125,7 +161,7 @@ class SocketManager {
             playerState: this.getPlayerState(gameState, userId)
           });
         } else {
-          // This is important - if there's no game yet, create one!
+          // If there's no game yet, create one!
           console.log(`No game found for lobby ${lobbyId}, attempting to create one`);
           this.startGame(lobbyId).then(success => {
             if (success) {
@@ -150,15 +186,62 @@ class SocketManager {
         const gameState = this.roomToGame.get(lobbyId);
         
         try {
-          // Process the action (simplified for now)
+          // Process the action
           this.processGameAction(gameState, userId, action, amount);
           
-          // Update all players
+          // Get username
+          const username = this.playerNames.get(userId) || 'Player';
+          
+          // Broadcast player action to all players in the room
+          this.io.to(lobbyId).emit('playerAction', {
+            userId,
+            username,
+            action,
+            amount
+          });
+          
+          // Update all players with the new game state
           this.broadcastGameState(lobbyId);
         } catch (error) {
           console.error('Game action error:', error);
           socket.emit('error', { message: error.message });
         }
+      });
+      
+      // Handle chat messages
+      socket.on('chatMessage', (data) => {
+        const { lobbyId, message } = data;
+        
+        if (!message || !lobbyId) {
+          return;
+        }
+        
+        // Get username
+        const username = this.playerNames.get(userId) || 'Player';
+        
+        // Create chat message object
+        const chatMessage = {
+          userId,
+          username,
+          message,
+          timestamp: new Date().toISOString()
+        };
+        
+        // Store message in chat history
+        if (!this.chatHistory.has(lobbyId)) {
+          this.chatHistory.set(lobbyId, []);
+        }
+        
+        const history = this.chatHistory.get(lobbyId);
+        history.push(chatMessage);
+        
+        // Limit history to 100 messages
+        if (history.length > 100) {
+          history.shift();
+        }
+        
+        // Broadcast message to all other players in the room
+        socket.to(lobbyId).emit('chatMessage', chatMessage);
       });
       
       // Handle starting a game
@@ -175,9 +258,61 @@ class SocketManager {
       // Handle disconnection
       socket.on('disconnect', () => {
         console.log(`User disconnected: ${userId}`);
+        
+        // Check if user was in a room and handle leaving
+        if (this.playerRooms.has(userId)) {
+          const roomId = this.playerRooms.get(userId);
+          this.handlePlayerLeaving(userId, roomId);
+        }
+        
         this.userSockets.delete(userId);
+        this.playerRooms.delete(userId);
       });
     });
+  }
+  
+  // Handle a player leaving a game room
+  async handlePlayerLeaving(userId, roomId) {
+    console.log(`Handling player ${userId} leaving room ${roomId}`);
+    
+    // Get username
+    const username = this.playerNames.get(userId) || 'Player';
+    
+    // Notify other players in the room that a player has left
+    this.io.to(roomId).emit('playerLeft', {
+      userId: userId,
+      username: username,
+      lobbyId: roomId
+    });
+    
+    // Update game state if needed
+    if (this.roomToGame.has(roomId)) {
+      const gameState = this.roomToGame.get(roomId);
+      
+      // Find the player in the game
+      const playerIndex = gameState.players.findIndex(p => p.id === userId);
+      
+      if (playerIndex !== -1) {
+        // Remove player from game state or mark as inactive
+        console.log(`Removing player ${userId} from game state`);
+        gameState.players.splice(playerIndex, 1);
+        
+        // If no players left, clean up the game
+        if (gameState.players.length === 0) {
+          console.log(`No players left in room ${roomId}, cleaning up game state`);
+          this.roomToGame.delete(roomId);
+          
+          // Clean up chat history too
+          this.chatHistory.delete(roomId);
+        } else {
+          // Otherwise broadcast updated game state
+          this.broadcastGameState(roomId);
+        }
+      }
+    }
+    
+    // Remove from tracking
+    this.playerRooms.delete(userId);
   }
   
   // Broadcast game state to all players in a room
@@ -210,7 +345,6 @@ class SocketManager {
   }
   
   // Start a game for a lobby
-// Start a game for a lobby
   async startGame(lobbyId) {
     try {
       console.log(`Starting game for lobby: ${lobbyId}`);

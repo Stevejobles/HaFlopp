@@ -13,7 +13,9 @@ class PokerSocketClient {
       onError: null,
       onGameStarted: null,
       onPlayerJoin: null,
-      onPlayerLeave: null
+      onPlayerLeave: null,
+      onChatMessage: null,
+      onPlayerAction: null
     };
   }
   
@@ -107,6 +109,24 @@ class PokerSocketClient {
         this.callbacks.onPlayerLeave(data);
       }
     });
+    
+    // Add event for chat messages
+    this.socket.on('chatMessage', (data) => {
+      console.log('Chat message received:', data);
+      
+      if (this.callbacks.onChatMessage) {
+        this.callbacks.onChatMessage(data);
+      }
+    });
+    
+    // Add event for player actions
+    this.socket.on('playerAction', (data) => {
+      console.log('Player action received:', data);
+      
+      if (this.callbacks.onPlayerAction) {
+        this.callbacks.onPlayerAction(data);
+      }
+    });
 
     this.socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
@@ -162,6 +182,22 @@ class PokerSocketClient {
     return true;
   }
   
+  // Send a chat message
+  sendChatMessage(message) {
+    if (!this.isConnected || !this.gameId) {
+      console.error('Cannot send chat message: not connected or no game ID');
+      return false;
+    }
+    
+    console.log('Sending chat message:', message);
+    this.socket.emit('chatMessage', {
+      lobbyId: this.gameId,
+      message: message
+    });
+    
+    return true;
+  }
+  
   // Request to start the game
   startGame() {
     if (!this.isConnected || !this.gameId) {
@@ -180,6 +216,17 @@ class PokerSocketClient {
       ...this.callbacks,
       ...callbacks
     };
+  }
+  
+  // Generic emit method for custom events
+  emit(event, data) {
+    if (!this.isConnected) {
+      console.error('Cannot emit event: not connected');
+      return false;
+    }
+    
+    this.socket.emit(event, data);
+    return true;
   }
   
   // Check if socket is connected

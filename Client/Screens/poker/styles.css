@@ -8,11 +8,19 @@ body {
   padding: 0;
 }
 
-.content {
+/* Main container */
+.main-container {
   display: flex;
+  height: 100vh;
+  width: 100%;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100vh;
 }
 
 /* Button styles */
@@ -40,6 +48,7 @@ body {
   justify-content: center;
   padding: 12px;
   border-radius: 50%;
+  z-index: 100;
 }
 
 /* Pot display */
@@ -51,6 +60,9 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+  position: absolute;
+  top: 20px;
+  z-index: 5;
 }
 
 /* Table layout - keeping original dimensions */
@@ -72,6 +84,10 @@ body {
   gap: 10px;
   justify-content: center;
   margin-bottom: 20px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .table-card {
@@ -203,7 +219,46 @@ body {
   width: max-content;
 }
 
-/* New additions for player joining/leaving animations */
+/* Player action status - NEW */
+.player-action {
+  font-size: 14px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-top: 5px;
+  animation: fadeIn 0.3s ease-in-out;
+  width: 100%;
+  text-align: center;
+}
+
+.player-action.checked {
+  background: rgba(52, 152, 219, 0.6);
+}
+
+.player-action.bet, .player-action.raised {
+  background: rgba(46, 204, 113, 0.6);
+}
+
+.player-action.folded {
+  background: rgba(231, 76, 60, 0.6);
+}
+
+.player-action.all-in {
+  background: rgba(241, 196, 15, 0.6);
+  color: #000;
+}
+
+.player-action.hidden {
+  display: none;
+}
+
+/* Animation for player actions */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Player joining/leaving animations */
 @keyframes playerJoin {
   from {
     opacity: 0;
@@ -303,4 +358,246 @@ body {
   padding: 3px 8px;
   border-radius: 10px;
   margin-top: 5px;
+}
+
+/* ===== NEW FEATURE: PLAYER ACTION BAR ===== */
+.player-actions {
+  margin-top: 30px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 15px;
+  padding: 15px;
+  width: 80%;
+  max-width: 600px;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.action-btn {
+  padding: 12px 25px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+
+.action-btn:active {
+  transform: translateY(0);
+}
+
+.action-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fold-btn {
+  background-color: #e74c3c;
+}
+
+.check-btn {
+  background-color: #3498db;
+}
+
+.bet-btn, .raise-btn {
+  background-color: #2ecc71;
+}
+
+.bet-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bet-amount-container {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+#bet-amount {
+  width: 80px;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  text-align: center;
+}
+
+.bet-amount-controls {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  right: 5px;
+  height: 100%;
+}
+
+.bet-control-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #333;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 5px;
+}
+
+.bet-control-btn:hover {
+  color: #000;
+}
+
+/* ===== NEW FEATURE: CHAT SYSTEM ===== */
+.chat-container {
+  width: 300px;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chat-header {
+  padding: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.chat-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 15px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-message {
+  padding: 10px;
+  border-radius: 10px;
+  max-width: 85%;
+  word-break: break-word;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.my-message {
+  background-color: #2980b9;
+  align-self: flex-end;
+}
+
+.other-message {
+  background-color: #555;
+  align-self: flex-start;
+}
+
+.system-message {
+  background-color: rgba(0, 0, 0, 0.5);
+  text-align: center;
+  padding: 8px;
+  border-radius: 8px;
+  margin: 10px 0;
+  font-style: italic;
+  align-self: center;
+}
+
+.message-sender {
+  font-weight: bold;
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+
+.message-time {
+  font-size: 10px;
+  opacity: 0.7;
+  margin-top: 3px;
+  text-align: right;
+}
+
+.chat-input-container {
+  display: flex;
+  padding: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#chat-input {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 8px 0 0 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+#chat-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+#chat-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#send-message-btn {
+  padding: 10px 15px;
+  background: #2ecc71;
+  border: none;
+  border-radius: 0 8px 8px 0;
+  color: white;
+  cursor: pointer;
+}
+
+#send-message-btn:hover {
+  background: #27ae60;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .main-container {
+    flex-direction: column;
+  }
+  
+  .chat-container {
+    width: 100%;
+    height: 300px;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .content {
+    padding: 20px 0;
+  }
+}
+
+@media (max-width: 800px) {
+  .table {
+    width: 90%;
+    height: auto;
+    aspect-ratio: 16/9;
+    border-radius: 30px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .bet-controls {
+    flex-direction: column;
+  }
 }
