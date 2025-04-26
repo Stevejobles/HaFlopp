@@ -356,14 +356,17 @@ body {
   margin-top: 5px;
 }
 
+/*random change
+
 /* ===== PLAYER ACTION BAR ===== */
 .player-actions {
-  margin-top: 30px;
+  margin-top: 120px; 
   background: rgba(0, 0, 0, 0.6);
   border-radius: 15px;
   padding: 15px;
   width: 80%;
   max-width: 600px;
+  z-index: 5; /* Ensure it's above other elements */
 }
 
 .action-buttons {
