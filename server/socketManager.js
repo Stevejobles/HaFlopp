@@ -131,28 +131,28 @@ class SocketManager {
             socket.leave(previousRoomId);
           }
         }
-
+      
         // Join the new room
         socket.join(lobbyId);
         this.playerRooms.set(userId, lobbyId);
         console.log(`User ${userId} joined room ${lobbyId}`);
-
+      
         // Get username
         const username = this.playerNames.get(userId) || 'Player';
-
+      
         // Notify other players in the room that a new player has joined
         socket.to(lobbyId).emit('playerJoined', {
           userId: userId,
           username: username,
           lobbyId: lobbyId
         });
-
+      
         // Send chat history to the new player
         if (this.chatHistory.has(lobbyId)) {
           const history = this.chatHistory.get(lobbyId);
           socket.emit('chatHistory', { history });
         }
-
+      
         // If there's an active game for this lobby, send game state
         if (this.roomToGame.has(lobbyId)) {
           const gameState = this.roomToGame.get(lobbyId);
@@ -219,6 +219,8 @@ class SocketManager {
         // Get username
         const username = this.playerNames.get(userId) || 'Player';
         
+        console.log(`Chat message from ${username}: ${message}`);
+        
         // Create chat message object
         const chatMessage = {
           userId,
@@ -242,17 +244,6 @@ class SocketManager {
         
         // Broadcast message to all other players in the room
         socket.to(lobbyId).emit('chatMessage', chatMessage);
-      });
-      
-      // Handle starting a game
-      socket.on('startGame', async (lobbyId) => {
-        try {
-          // Initialize a new game
-          await this.startGame(lobbyId);
-        } catch (error) {
-          console.error('Start game error:', error);
-          socket.emit('error', { message: error.message });
-        }
       });
       
       // Handle disconnection

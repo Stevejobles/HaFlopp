@@ -162,15 +162,14 @@ body {
 }
 
 /* Player action status */
-.player-action {
-  font-size: 14px;
+.player-actions {
+  margin-top: 120px; /* Increased from 30px to allow space for the player */
   background: rgba(0, 0, 0, 0.6);
-  padding: 4px 10px;
-  border-radius: 20px;
-  margin-top: 5px;
-  animation: fadeIn 0.3s ease-in-out;
-  width: 100%;
-  text-align: center;
+  border-radius: 15px;
+  padding: 15px;
+  width: 80%;
+  max-width: 600px;
+  z-index: 5; /* Ensure it's above other elements */
 }
 
 .player-action.checked {
