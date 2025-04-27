@@ -89,38 +89,78 @@ body {
     position: absolute;
 }
 
-.user.me {
-    left: 50%;
-    bottom: -20px;
-    transform: translateY(100%) translateX(-50%);
+/* Clear existing positioning */
+.table .other-users .user {
+  position: absolute;
 }
 
-.table .other-users .user:nth-of-type(1) {
-    bottom: 0;
-    transform: translateX(-50%);
+/* Position 0: bottom left */
+.table .other-users .user[data-position="0"] {
+  bottom: 20px;
+  left: 20px;
 }
 
-.table .other-users .user:nth-of-type(2) {
-    transform: translateX(-50%);
+/* Position 1: middle left */
+.table .other-users .user[data-position="1"] {
+  top: 50%;
+  left: 20px;
+  transform: translateY(-50%);
 }
 
-.table .other-users .user:nth-of-type(3) {
-    left: 50%;
-    top: -20px;
-    transform: translateY(-100%) translateX(-50%);
+/* Position 2: top center */
+.table .other-users .user[data-position="2"] {
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
-.table .other-users .user:nth-of-type(4) {
-    right: 0;
-    transform: translateX(50%);
+/* Position 3: middle right */
+.table .other-users .user[data-position="3"] {
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
 }
 
-.table .other-users .user:nth-of-type(5) {
-    bottom: 0;
-    right: 0;
-    transform: translateX(50%);
+/* Position 4: bottom right */
+.table .other-users .user[data-position="4"] {
+  bottom: 20px;
+  right: 20px;
 }
-/* ======== END OF EXACT POSITIONING ======== */
+
+/* Ensure the user content doesn't overlap */
+.table .user .user-content {
+  font-size: 16px; /* Slightly smaller font */
+  min-width: 120px;
+  max-width: 150px;
+}
+
+/* Improve visual separation */
+.table .user {
+  z-index: 1;
+}
+
+.table .user.current-turn {
+  z-index: 2; /* Ensure current player is on top */
+}
+
+/* Ensure proper positioning for the current user (me) */
+.table .user.me {
+  position: absolute;
+  left: 50%;
+  bottom: -20px;
+  transform: translateY(100%) translateX(-50%);
+  z-index: 2;
+}
+
+/* Add some animation for smoother transitions */
+.table .user {
+  transition: box-shadow 0.3s ease;
+}
+
+/* Visual indicator for current turn */
+.table .user.current-turn .user-content {
+  box-shadow: 0 0 15px 5px rgba(255, 255, 0, 0.5);
+}
 
 /* Table cards */
 .table-cards {

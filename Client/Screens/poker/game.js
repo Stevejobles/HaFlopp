@@ -158,6 +158,34 @@ class PokerGame {
         this.handleAction('raise', amount);
       });
 
+      socket.on('requestGameState', (data) => {
+        const { lobbyId } = data;
+        
+        if (!lobbyId) {
+          socket.emit('error', { message: 'Invalid lobby ID' });
+          return;
+        }
+        
+        // Get the game state for this lobby
+        const gameState = this.roomToGame.get(lobbyId);
+        if (!gameState) {
+          socket.emit('error', { message: 'Game not found' });
+          return;
+        }
+        
+        // Send the current game state to just this client
+        const userId = socket.userId;
+        const publicState = this.getPublicGameState(gameState);
+        const playerState = this.getPlayerState(gameState, userId);
+        
+        console.log(`Sending game state for lobby ${lobbyId} to user ${userId}`);
+        
+        socket.emit('gameState', {
+          gameState: publicState,
+          playerState
+        });
+      });
+
       // Bet amount controls
       this.betIncreaseBtn.addEventListener('click', () => this.adjustBetAmount(10));
       this.betDecreaseBtn.addEventListener('click', () => this.adjustBetAmount(-10));
@@ -199,7 +227,11 @@ class PokerGame {
 
       // Connect socket with user ID
       this.log('Connecting socket with user ID:', this.currentUser.id);
-      this.socket.connectWithAuth(this.currentUser.id);
+      this.socket.connectWithAuth(this.currentUser.id); 
+      // Set up a timer to request game state updates
+      this.gameStateTimer = setInterval(() => {
+        this.requestGameStateUpdate();
+      }, 5000); // Request update every 5 seconds
 
       // Disable all action buttons initially
       this.updateActionButtons([]);
@@ -228,6 +260,20 @@ class PokerGame {
     } catch (error) {
       console.error('[PokerGame] Initialization error:', error);
       this.addSystemMessage('Failed to initialize the game. Please try refreshing the page.');
+    }
+  }
+
+  requestGameStateUpdate() {
+    if (this.socket && this.socket.isSocketConnected()) {
+      this.socket.requestGameState();
+    } else {
+      console.error("Socket not connected, can't request game state");
+      this.addSystemMessage("Connection issues - trying to reconnect...");
+      
+      // Try to reconnect if socket is disconnected
+      if (this.socket) {
+        this.socket.reconnect();
+      }
     }
   }
 
@@ -470,22 +516,31 @@ class PokerGame {
   // Render other players
   renderOtherPlayers(otherPlayers) {
     this.log('Rendering', otherPlayers.length, 'other players');
-    otherPlayers.forEach((player, index) => {
+
+    // First clear the container
+    this.otherUsersContainer.innerHTML = '';
+
+    // Map players to positions around the table - limiting to 5 other players max
+    const playerPositions = this.calculateOptimalPositions(otherPlayers);
+
+    // Create player elements at their designated positions
+    playerPositions.forEach((player, position) => {
       const playerElement = document.createElement('div');
-      playerElement.className = 'user';
+      playerElement.className = 'user position-' + position;
       playerElement.dataset.userId = player.id;
-      
+      playerElement.dataset.position = position;
+
       // Add status classes
       if (player.folded) playerElement.classList.add('folded');
       if (player.isAllIn) playerElement.classList.add('allin');
       if (player.isCurrentTurn) playerElement.classList.add('current-turn');
-      
+
       // Add role indicators
       let roleIndicator = '';
       if (player.isDealer) roleIndicator += '<span class="role dealer">D</span>';
       if (player.isSmallBlind) roleIndicator += '<span class="role small-blind">SB</span>';
       if (player.isBigBlind) roleIndicator += '<span class="role big-blind">BB</span>';
-      
+
       // Generate action display
       let actionDisplay = '';
       if (this.playerActions[player.id]) {
@@ -494,7 +549,7 @@ class PokerGame {
       } else {
         actionDisplay = `<div class="player-action hidden"></div>`;
       }
-      
+
       playerElement.innerHTML = `
         <div class="cards">
           <div class="card"></div>
@@ -507,9 +562,44 @@ class PokerGame {
           ${actionDisplay}
         </div>
       `;
-      
+
       this.otherUsersContainer.appendChild(playerElement);
     });
+  }
+
+  // Add this helper method to game.js
+  calculateOptimalPositions(otherPlayers) {
+    // Limit to 5 other players max
+    const players = otherPlayers.slice(0, 5);
+
+    // If we have 5 players, use all positions
+    if (players.length === 5) {
+      return players;
+    }
+
+    // Define optimal position order based on number of players
+    // The numbers represent the position index (0-4) around the table
+    const positionMap = {
+      1: [2], // just top center
+      2: [0, 4], // bottom left and bottom right
+      3: [0, 2, 4], // bottom left, top, bottom right
+      4: [0, 1, 3, 4] // all except top
+    };
+
+    // Get the optimal positions for this player count
+    const optimalPositions = positionMap[players.length] || [];
+
+    // Create a new array with players in optimal positions
+    const positionedPlayers = Array(5).fill(null);
+
+    optimalPositions.forEach((pos, index) => {
+      if (index < players.length) {
+        positionedPlayers[pos] = players[index];
+      }
+    });
+
+    // Return only the non-null positions
+    return positionedPlayers.filter(player => player !== null);
   }
 
   // Handle player joining
@@ -595,6 +685,8 @@ class PokerGame {
     this.gameStatusElement.textContent = statusText;
   }
   
+  
+
   // Update action buttons based on available actions
   updateActionButtons(availableActions) {
     this.log('Updating action buttons with available actions:', availableActions);
@@ -711,6 +803,10 @@ class PokerGame {
       }, 1000);
     }
   }
+  
+  
+  
+  
   
   // Update player action display
   updatePlayerAction(data) {
@@ -986,10 +1082,13 @@ class PokerGame {
     if (confirm('Are you sure you want to leave the game? This will remove you from the table.')) {
       // Disconnect socket
       this.socket.disconnect();
+      clearInterval(this.gameStateTimer);
       window.location.href = '../index.html';
     }
   }
 }
+
+
 
 // Initialize the game when the page loads
 document.addEventListener('DOMContentLoaded', () => {

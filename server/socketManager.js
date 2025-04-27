@@ -102,11 +102,40 @@ class SocketManager {
     this.io.on('connection', (socket) => {
       const userId = socket.userId;
       console.log(`User connected with socket ID: ${socket.id}, user ID: ${userId}`);
-
+  
       console.log(`User connected: ${userId}`);
       
       // Store socket reference for this user
       this.userSockets.set(userId, socket);
+      
+      // Handle game state requests - this should be at this level, not inside joinGame
+      socket.on('requestGameState', (data) => {
+        const { lobbyId } = data;
+        
+        if (!lobbyId) {
+          socket.emit('error', { message: 'Invalid lobby ID' });
+          return;
+        }
+        
+        console.log(`User ${socket.userId} requested game state for lobby ${lobbyId}`);
+        
+        // Get the game state for this lobby
+        const gameState = this.roomToGame.get(lobbyId);
+        if (!gameState) {
+          socket.emit('error', { message: 'Game not found' });
+          return;
+        }
+        
+        // Send the current game state to just this client
+        const userId = socket.userId;
+        const publicState = this.getPublicGameState(gameState);
+        const playerState = this.getPlayerState(gameState, userId);
+        
+        socket.emit('gameState', {
+          gameState: publicState,
+          playerState
+        });
+      });
       
       // Handle joining a game room
       socket.on('joinGame', async (lobbyId) => {
@@ -262,6 +291,8 @@ class SocketManager {
     });
   }
   
+  
+
   // Handle a player leaving a game room
   async handlePlayerLeaving(userId, roomId) {
     console.log(`Handling player ${userId} leaving room ${roomId}`);
