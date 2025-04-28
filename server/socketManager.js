@@ -853,7 +853,7 @@ class SocketManager {
     return actions;
   }
   
-  // Get socket manager instance
+  // Get socket manager instance - was an error
   static getInstance(server, sessionMiddleware, db) {
     if (!this.instance) {
       this.instance = new SocketManager(server, sessionMiddleware, db);
