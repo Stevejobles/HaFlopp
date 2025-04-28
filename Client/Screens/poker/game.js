@@ -155,33 +155,8 @@ class PokerGame {
         this.handleAction('raise', amount);
       });
 
-      socket.on('requestGameState', (data) => {
-        const { lobbyId } = data;
-        
-        if (!lobbyId) {
-          socket.emit('error', { message: 'Invalid lobby ID' });
-          return;
-        }
-        
-        // Get the game state for this lobby
-        const gameState = this.roomToGame.get(lobbyId);
-        if (!gameState) {
-          socket.emit('error', { message: 'Game not found' });
-          return;
-        }
-        
-        // Send the current game state to just this client
-        const userId = socket.userId;
-        const publicState = this.getPublicGameState(gameState);
-        const playerState = this.getPlayerState(gameState, userId);
-        
-        console.log(`Sending game state for lobby ${lobbyId} to user ${userId}`);
-        
-        socket.emit('gameState', {
-          gameState: publicState,
-          playerState
-        });
-      });
+      // PROBLEM: This section has no access to 'socket'
+      // REMOVED: socket.on('requestGameState', (data) => { ... });
 
       // Bet amount controls
       this.betIncreaseBtn.addEventListener('click', () => this.adjustBetAmount(10));
@@ -360,8 +335,12 @@ class PokerGame {
     this.updateTableCards(gameState.tableCards || []);
 
     // Clear previous player elements
-    this.usersContainer.innerHTML = '';
-    this.otherUsersContainer.innerHTML = '';
+    if (this.usersContainer) {
+      this.usersContainer.innerHTML = '';
+    }
+    if (this.otherUsersContainer) {
+      this.otherUsersContainer.innerHTML = '';
+    }
 
     // Update players
     this.renderPlayers(gameState.players || []);
@@ -391,8 +370,8 @@ class PokerGame {
     // Then update visible cards
     for (let i = 0; i < tableCards.length && i < cardElements.length; i++) {
       cardElements[i].classList.remove('hidden');
-      cardElements[i].textContent = this.formatCard(tableCards[i]);
-      this.log(`Set card ${i} to ${this.formatCard(tableCards[i])}`);
+      cardElements[i].textContent = this.formatCard(tableCards[i]).display;
+      this.log(`Set card ${i} to ${this.formatCard(tableCards[i]).display}`);
     }
   }
 
@@ -428,6 +407,11 @@ class PokerGame {
   // Render current player
   renderCurrentPlayer(player) {
     this.log('Rendering current player:', player);
+    if (!this.usersContainer) {
+      this.log('Error: users container not found');
+      return;
+    }
+
     const userElement = document.createElement('div');
     userElement.className = 'user me';
     userElement.dataset.userId = player.id;
@@ -449,10 +433,10 @@ class PokerGame {
       cardsHtml = `
         <div class="cards">
           <div class="card">
-            <div class="number">${this.formatCard(this.playerState.hand[0])}</div>
+            <div class="number">${this.formatCard(this.playerState.hand[0]).display}</div>
           </div>
           <div class="card">
-            <div class="number">${this.formatCard(this.playerState.hand[1])}</div>
+            <div class="number">${this.formatCard(this.playerState.hand[1]).display}</div>
           </div>
         </div>
       `;
