@@ -225,7 +225,7 @@ class PokerSocketClient {
       return false;
     }
     
-    console.log('Sending chat message to lobby:', this.gameId, message);
+    console.log('Sending chat message:', message, 'to lobby:', this.gameId);
     this.socket.emit('chatMessage', {
       lobbyId: this.gameId,
       message: message
@@ -283,17 +283,6 @@ class PokerSocketClient {
   // Check if socket is connected
   isSocketConnected() {
     return this.isConnected && this.socket && this.socket.connected;
-  }
-  
-  // Reconnect if disconnected
-  reconnect() {
-    if (!this.isConnected && !this.socket) {
-      return this.connect();
-    } else if (this.socket && !this.socket.connected) {
-      this.socket.connect();
-      return true;
-    }
-    return false;
   }
 }
 

@@ -78,9 +78,6 @@ class PokerGame {
 
     // Initialize the game
     this.init();
-    
-    // Add to window for debugging
-    window.gameInstance = this;
   }
   
   log(...args) {
@@ -228,19 +225,12 @@ class PokerGame {
       // Connect socket with user ID
       this.log('Connecting socket with user ID:', this.currentUser.id);
       this.socket.connectWithAuth(this.currentUser.id); 
-      // Set up a timer to request game state updates
-      this.gameStateTimer = setInterval(() => {
-        this.requestGameStateUpdate();
-      }, 5000); // Request update every 5 seconds
 
       // Disable all action buttons initially
       this.updateActionButtons([]);
 
       // Show initial status
       this.gameStatusElement.textContent = 'Connecting to game...';
-
-      // Initially clear other players container
-      this.clearOtherPlayers();
 
       // Add system message
       this.addSystemMessage(`Connected as ${this.currentUser.username}`);
@@ -338,11 +328,6 @@ class PokerGame {
       
       onChatHistory: (data) => {
         this.log('Chat history received:', data);
-        if (data.history && Array.isArray(data.history)) {
-          data.history.forEach(msg => {
-            this.receiveChatMessage(msg);
-          });
-        }
       },
 
       onPlayerAction: (data) => {
@@ -409,12 +394,6 @@ class PokerGame {
       cardElements[i].textContent = this.formatCard(tableCards[i]);
       this.log(`Set card ${i} to ${this.formatCard(tableCards[i])}`);
     }
-  }
-
-  // Clear the other players container
-  clearOtherPlayers() {
-    this.log('Clearing other players container');
-    this.otherUsersContainer.innerHTML = '';
   }
 
   // Render all players
@@ -516,31 +495,35 @@ class PokerGame {
   // Render other players
   renderOtherPlayers(otherPlayers) {
     this.log('Rendering', otherPlayers.length, 'other players');
-
-    // First clear the container
-    this.otherUsersContainer.innerHTML = '';
-
-    // Map players to positions around the table - limiting to 5 other players max
-    const playerPositions = this.calculateOptimalPositions(otherPlayers);
-
-    // Create player elements at their designated positions
-    playerPositions.forEach((player, position) => {
+  
+    // Clear any existing players from positions
+    document.querySelectorAll('.player-position').forEach(position => {
+      position.innerHTML = '';
+    });
+  
+    // Place players in fixed positions
+    otherPlayers.forEach((player, index) => {
+      // Only display up to 5 players
+      if (index >= 5) return;
+      
+      const positionElement = document.getElementById(`position-${index}`);
+      if (!positionElement) return;
+  
       const playerElement = document.createElement('div');
-      playerElement.className = 'user position-' + position;
+      playerElement.className = 'user';
       playerElement.dataset.userId = player.id;
-      playerElement.dataset.position = position;
-
+      
       // Add status classes
       if (player.folded) playerElement.classList.add('folded');
       if (player.isAllIn) playerElement.classList.add('allin');
       if (player.isCurrentTurn) playerElement.classList.add('current-turn');
-
+  
       // Add role indicators
       let roleIndicator = '';
       if (player.isDealer) roleIndicator += '<span class="role dealer">D</span>';
       if (player.isSmallBlind) roleIndicator += '<span class="role small-blind">SB</span>';
       if (player.isBigBlind) roleIndicator += '<span class="role big-blind">BB</span>';
-
+  
       // Generate action display
       let actionDisplay = '';
       if (this.playerActions[player.id]) {
@@ -549,7 +532,7 @@ class PokerGame {
       } else {
         actionDisplay = `<div class="player-action hidden"></div>`;
       }
-
+  
       playerElement.innerHTML = `
         <div class="cards">
           <div class="card"></div>
@@ -562,70 +545,9 @@ class PokerGame {
           ${actionDisplay}
         </div>
       `;
-
-      this.otherUsersContainer.appendChild(playerElement);
+  
+      positionElement.appendChild(playerElement);
     });
-  }
-
-  /**
-   * Calculate optimal positions for other players around the table
-   * @param {Array} otherPlayers - Array of players excluding the current user
-   * @return {Array} Array of players with optimal positions
-   */
-  calculateOptimalPositions(otherPlayers) {
-    this.log('Calculating optimal positions for', otherPlayers.length, 'players');
-
-    // Maximum of 5 other players shown on the table
-    const players = otherPlayers.slice(0, 5);
-
-    // Initialize positioned players array
-    let positionedPlayers = [];
-
-    // Position map based on number of players
-    // The positions are arranged in a natural, balanced way around the table
-    switch (players.length) {
-      case 1:
-        // Just one player - place them at the top center
-        positionedPlayers.push({ ...players[0], position: 2 });
-        break;
-
-      case 2:
-        // Two players - place them at top left and top right
-        positionedPlayers.push({ ...players[0], position: 1 });
-        positionedPlayers.push({ ...players[1], position: 3 });
-        break;
-
-      case 3:
-        // Three players - triangle formation
-        positionedPlayers.push({ ...players[0], position: 0 });
-        positionedPlayers.push({ ...players[1], position: 2 });
-        positionedPlayers.push({ ...players[2], position: 4 });
-        break;
-
-      case 4:
-        // Four players - balanced around the table
-        positionedPlayers.push({ ...players[0], position: 0 });
-        positionedPlayers.push({ ...players[1], position: 1 });
-        positionedPlayers.push({ ...players[2], position: 3 });
-        positionedPlayers.push({ ...players[3], position: 4 });
-        break;
-
-      case 5:
-        // Five players - fill all positions
-        positionedPlayers.push({ ...players[0], position: 0 });
-        positionedPlayers.push({ ...players[1], position: 1 });
-        positionedPlayers.push({ ...players[2], position: 2 });
-        positionedPlayers.push({ ...players[3], position: 3 });
-        positionedPlayers.push({ ...players[4], position: 4 });
-        break;
-
-      default:
-        // If no players or unexpected value, return empty array
-        break;
-    }
-
-    this.log('Positioned players:', positionedPlayers);
-    return positionedPlayers;
   }
 
   // Handle player joining
@@ -975,12 +897,19 @@ class PokerGame {
   sendChatMessage() {
     const message = this.chatInput.value.trim();
     if (!message) return;
-
+  
     this.log('Sending chat message:', message);
-
+  
     // Clear input
     this.chatInput.value = '';
-
+  
+    // Make sure we have the correct lobby ID
+    if (!this.lobbyId) {
+      console.error('No lobby ID available for chat message');
+      this.addSystemMessage('Error: Cannot send message - no game ID');
+      return;
+    }
+  
     // Create message data
     const messageData = {
       userId: this.currentUser.id,
@@ -989,27 +918,27 @@ class PokerGame {
       timestamp: new Date().toISOString(),
       isSelf: true
     };
-
+  
     // Send message to server
     if (this.socket && this.socket.isSocketConnected()) {
-      // IMPORTANT FIX: Make sure we're sending the lobbyId correctly
-      this.socket.sendChatMessage(message);
-
+      // Explicitly include the lobby ID in the message data
+      this.socket.emit('chatMessage', {
+        lobbyId: this.lobbyId,
+        message: message
+      });
+  
       // Add message to chat locally immediately
       this.addChatMessage(messageData);
+      
+      // Force scroll to bottom
+      this.scrollChatToBottom();
     } else {
       console.error("Socket not connected, can't send chat message");
       this.addSystemMessage("Message not sent - connection issues");
-
+      
       // Try to reconnect socket
       if (this.socket) {
         this.socket.reconnect();
-        setTimeout(() => {
-          if (this.socket.isSocketConnected()) {
-            this.socket.sendChatMessage(message);
-            this.addSystemMessage("Connection restored - message sent");
-          }
-        }, 1000);
       }
     }
   }
@@ -1041,9 +970,14 @@ class PokerGame {
     messageElement.className = `chat-message ${isSelf ? 'my-message' : 'other-message'}`;
     
     // Format timestamp
-    const time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    let time;
+    try {
+      time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
     
-    // Set content
+    // Set content with better visibility
     messageElement.innerHTML = `
       <div class="message-sender">${username}</div>
       <div class="message-content">${this.escapeHTML(message)}</div>
@@ -1053,7 +987,7 @@ class PokerGame {
     // Add to container
     this.chatMessagesContainer.appendChild(messageElement);
     
-    // Scroll to bottom
+    // Force scroll to bottom
     this.scrollChatToBottom();
   }
   
@@ -1078,32 +1012,6 @@ class PokerGame {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-  }
-  
-  // Manual connection check - can be called from console for debugging
-  checkConnection() {
-    this.log('Manual connection check');
-    if (this.socket && this.socket.isSocketConnected()) {
-      this.log('Socket is connected');
-      this.addSystemMessage('✅ Socket is connected');
-      return true;
-    } else {
-      this.log('Socket is not connected, attempting to reconnect');
-      this.addSystemMessage('❌ Socket is not connected, attempting to reconnect');
-      this.socket.reconnect();
-      
-      // Try joining the game after a short delay
-      setTimeout(() => {
-        if (this.socket.isSocketConnected()) {
-          this.socket.joinGame(this.lobbyId);
-          this.addSystemMessage('Reconnected and rejoined game');
-        } else {
-          this.addSystemMessage('Reconnection failed');
-        }
-      }, 1000);
-      
-      return false;
-    }
   }
   
   // Handle back button click

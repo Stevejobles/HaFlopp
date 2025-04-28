@@ -115,46 +115,39 @@ body {
   z-index: 10;
 }
 
-/* Improved other player positioning - natural oval/circle arrangement */
-.table .other-users .user[data-position="0"] {
+.player-position {
   position: absolute;
+  width: 180px;
+  height: 120px;
+}
+
+.position-0 {
   bottom: 50%;
   left: -80px;
   transform: translateY(50%);
 }
 
-.table .other-users .user[data-position="1"] {
-  position: absolute;
+.position-1 {
   top: -80px;
   left: 25%;
   transform: translateX(-50%);
 }
 
-.table .other-users .user[data-position="2"] {
-  position: absolute;
+.position-2 {
   top: -80px;
   left: 75%;
   transform: translateX(-50%);
 }
 
-.table .other-users .user[data-position="3"] {
-  position: absolute;
+.position-3 {
   bottom: 50%;
   right: -80px;
   transform: translateY(50%);
 }
 
-.table .other-users .user[data-position="4"] {
-  position: absolute;
+.position-4 {
   bottom: 20px;
   left: 30%;
-  transform: translateX(-50%);
-}
-
-.table .other-users .user[data-position="5"] {
-  position: absolute;
-  bottom: 20px;
-  left: 70%;
   transform: translateX(-50%);
 }
 
@@ -506,15 +499,23 @@ body {
   font-weight: 600;
 }
 
+.chat-message {
+  padding: 10px 12px;
+  border-radius: 12px;
+  max-width: 85%;
+  word-break: break-word;
+  animation: fadeIn 0.3s ease-in-out;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  margin-bottom: 8px;
+}
+
 .chat-messages {
-  flex: 1;
-  padding: 15px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  padding: 15px;
+  overflow-y: auto;
+  height: calc(100% - 120px);
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 .chat-messages::-webkit-scrollbar {
@@ -543,12 +544,20 @@ body {
   background: linear-gradient(to right, #2980b9, #3498db);
   align-self: flex-end;
   border-bottom-right-radius: 2px;
+  color: white;
 }
 
 .other-message {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
   align-self: flex-start;
   border-bottom-left-radius: 2px;
+  color: white;
+}
+
+.message-content {
+  font-size: 14px;
+  line-height: 1.4;
+  margin: 5px 0;
 }
 
 .system-message {
@@ -566,8 +575,9 @@ body {
 
 .message-sender {
   font-weight: bold;
-  font-size: 12px;
+  font-size: 13px;
   margin-bottom: 3px;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .message-time {
