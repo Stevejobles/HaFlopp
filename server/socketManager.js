@@ -4,6 +4,9 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 // Game state tracking
 class SocketManager {
+  
+  static instance = null;
+
   constructor(server, sessionMiddleware, db) {
     this.io = new Server(server, {
       cors: {
@@ -855,9 +858,11 @@ class SocketManager {
   
   // Get socket manager instance - was an error
   static getInstance(server, sessionMiddleware, db) {
-    if (!this.instance) {
-      this.instance = new SocketManager(server, sessionMiddleware, db);
+    if (!SocketManager.instance) {
+      SocketManager.instance = new SocketManager(server, sessionMiddleware, db);
     }
-    return this.instance;
+    return SocketManager.instance;
   }
 }
+
+module.exports = SocketManager;
