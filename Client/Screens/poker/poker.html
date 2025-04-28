@@ -9,7 +9,7 @@
     
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   
   <style>
     /* Debugging styles */
@@ -67,37 +67,40 @@
 
   <div class="main-container">
     <div class="content">
-      <div class="table">
-        <div class="pot">
-          <span class="pot-number">0</span>
-          <span class="material-symbols-outlined" style="font-size: 30px; margin-top: 2.5px; opacity: .8;">
-            poker_chip
-          </span>
-        </div>
+      <!-- Pot display -->
+      <div class="pot">
+        <span class="pot-number">0</span>
+        <span class="material-symbols-outlined" style="font-size: 24px; opacity: .8;">
+          poker_chip
+        </span>
+      </div>
 
+      <!-- Game status display -->
+      <div class="game-status">Waiting for players...</div>
+      
+      <!-- Poker table -->
+      <div class="table">
         <!-- Community cards container -->
         <div class="table-cards">
-          <div class="table-card hidden">?</div>
-          <div class="table-card hidden">?</div>
-          <div class="table-card hidden">?</div>
-          <div class="table-card hidden">?</div>
-          <div class="table-card hidden">?</div>
+          <div class="table-card hidden" data-value="?" data-suit="?"></div>
+          <div class="table-card hidden" data-value="?" data-suit="?"></div>
+          <div class="table-card hidden" data-value="?" data-suit="?"></div>
+          <div class="table-card hidden" data-value="?" data-suit="?"></div>
+          <div class="table-card hidden" data-value="?" data-suit="?"></div>
         </div>
 
-        <!-- Game status display -->
-        <div class="game-status">Waiting for players...</div>
-
+        <!-- Current player container -->
         <div class="users">
           <!-- Current player will be added dynamically -->
         </div>
 
-        <!-- Other players - these will be populated dynamically -->
+        <!-- Other players container -->
         <div class="other-users">
-          <!-- Seat positions will be filled dynamically -->
+          <!-- Other players will be added dynamically -->
         </div>
       </div>
 
-      <!-- Player action bar - new feature -->
+      <!-- Player action bar -->
       <div class="player-actions">
         <div class="action-buttons">
           <button id="fold-btn" class="action-btn fold-btn disabled" disabled>Fold</button>

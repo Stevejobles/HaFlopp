@@ -567,39 +567,65 @@ class PokerGame {
     });
   }
 
-  // Add this helper method to game.js
+  /**
+   * Calculate optimal positions for other players around the table
+   * @param {Array} otherPlayers - Array of players excluding the current user
+   * @return {Array} Array of players with optimal positions
+   */
   calculateOptimalPositions(otherPlayers) {
-    // Limit to 5 other players max
+    this.log('Calculating optimal positions for', otherPlayers.length, 'players');
+
+    // Maximum of 5 other players shown on the table
     const players = otherPlayers.slice(0, 5);
 
-    // If we have 5 players, use all positions
-    if (players.length === 5) {
-      return players;
+    // Initialize positioned players array
+    let positionedPlayers = [];
+
+    // Position map based on number of players
+    // The positions are arranged in a natural, balanced way around the table
+    switch (players.length) {
+      case 1:
+        // Just one player - place them at the top center
+        positionedPlayers.push({ ...players[0], position: 2 });
+        break;
+
+      case 2:
+        // Two players - place them at top left and top right
+        positionedPlayers.push({ ...players[0], position: 1 });
+        positionedPlayers.push({ ...players[1], position: 3 });
+        break;
+
+      case 3:
+        // Three players - triangle formation
+        positionedPlayers.push({ ...players[0], position: 0 });
+        positionedPlayers.push({ ...players[1], position: 2 });
+        positionedPlayers.push({ ...players[2], position: 4 });
+        break;
+
+      case 4:
+        // Four players - balanced around the table
+        positionedPlayers.push({ ...players[0], position: 0 });
+        positionedPlayers.push({ ...players[1], position: 1 });
+        positionedPlayers.push({ ...players[2], position: 3 });
+        positionedPlayers.push({ ...players[3], position: 4 });
+        break;
+
+      case 5:
+        // Five players - fill all positions
+        positionedPlayers.push({ ...players[0], position: 0 });
+        positionedPlayers.push({ ...players[1], position: 1 });
+        positionedPlayers.push({ ...players[2], position: 2 });
+        positionedPlayers.push({ ...players[3], position: 3 });
+        positionedPlayers.push({ ...players[4], position: 4 });
+        break;
+
+      default:
+        // If no players or unexpected value, return empty array
+        break;
     }
 
-    // Define optimal position order based on number of players
-    // The numbers represent the position index (0-4) around the table
-    const positionMap = {
-      1: [2], // just top center
-      2: [0, 4], // bottom left and bottom right
-      3: [0, 2, 4], // bottom left, top, bottom right
-      4: [0, 1, 3, 4] // all except top
-    };
-
-    // Get the optimal positions for this player count
-    const optimalPositions = positionMap[players.length] || [];
-
-    // Create a new array with players in optimal positions
-    const positionedPlayers = Array(5).fill(null);
-
-    optimalPositions.forEach((pos, index) => {
-      if (index < players.length) {
-        positionedPlayers[pos] = players[index];
-      }
-    });
-
-    // Return only the non-null positions
-    return positionedPlayers.filter(player => player !== null);
+    this.log('Positioned players:', positionedPlayers);
+    return positionedPlayers;
   }
 
   // Handle player joining
@@ -910,7 +936,7 @@ class PokerGame {
   
   // Format card for display (e.g. "Ah" -> "A♥")
   formatCard(cardCode) {
-    if (!cardCode) return '?';
+    if (!cardCode) return { display: '?', value: '?', suit: '?' };
     
     this.log('Formatting card:', cardCode);
     
@@ -938,66 +964,70 @@ class PokerGame {
     let displayValue = value;
     if (value === 'T') displayValue = '10';
     
-    return displayValue + suitSymbol;
+    return {
+      display: displayValue + suitSymbol,
+      value: displayValue,
+      suit: suitSymbol
+    };
   }
   
   // Send a chat message
   sendChatMessage() {
     const message = this.chatInput.value.trim();
     if (!message) return;
-    
+
     this.log('Sending chat message:', message);
-    
+
     // Clear input
     this.chatInput.value = '';
-    
-    // Get timestamp
-    const timestamp = new Date().toISOString();
-    
+
     // Create message data
     const messageData = {
       userId: this.currentUser.id,
       username: this.currentUser.username || 'You',
       message,
-      timestamp,
+      timestamp: new Date().toISOString(),
       isSelf: true
     };
-    
-    // Add message to chat locally immediately
-    this.addChatMessage(messageData);
-    
+
     // Send message to server
     if (this.socket && this.socket.isSocketConnected()) {
+      // IMPORTANT FIX: Make sure we're sending the lobbyId correctly
       this.socket.sendChatMessage(message);
+
+      // Add message to chat locally immediately
+      this.addChatMessage(messageData);
     } else {
       console.error("Socket not connected, can't send chat message");
       this.addSystemMessage("Message not sent - connection issues");
-      
+
       // Try to reconnect socket
-      this.socket.reconnect();
-      setTimeout(() => {
-        if (this.socket.isSocketConnected()) {
-          this.socket.sendChatMessage(message);
-          this.addSystemMessage("Connection restored - message sent");
-        }
-      }, 1000);
+      if (this.socket) {
+        this.socket.reconnect();
+        setTimeout(() => {
+          if (this.socket.isSocketConnected()) {
+            this.socket.sendChatMessage(message);
+            this.addSystemMessage("Connection restored - message sent");
+          }
+        }, 1000);
+      }
     }
   }
-  
+
   // Receive a chat message from the server
   receiveChatMessage(data) {
     this.log('Received chat message:', data);
-    
-    // Skip own messages (we already added them locally)
-    if (data.userId === this.currentUser.id) {
+
+    // Skip own messages (we already added them locally) - FIXED to check properly
+    if (data.userId === this.currentUser.id && data.timeStamp !== (this.lastMessageSent?.timeStamp)) {
       this.log('Skipping own message');
       return;
     }
-    
+
     // Add message to chat
     this.addChatMessage({
       ...data,
-      isSelf: false
+      isSelf: data.userId === this.currentUser.id
     });
   }
   
@@ -1101,7 +1131,7 @@ document.addEventListener('DOMContentLoaded', () => {
   debugBtn.textContent = '🐞 Debug Connection';
   debugBtn.style.position = 'fixed';
   debugBtn.style.bottom = '10px';
-  debugBtn.style.right = '10px';
+  debugBtn.style.left = '140px';
   debugBtn.style.zIndex = '9999';
   debugBtn.style.padding = '8px 12px';
   debugBtn.style.background = 'rgba(255,0,0,0.3)';

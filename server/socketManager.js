@@ -1,6 +1,6 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
-const { ObjectId } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 
 // Game state tracking
 class SocketManager {
@@ -237,18 +237,19 @@ class SocketManager {
         }
       });
       
-      // Handle chat messages
+      // Handle chat messages - FIXED
       socket.on('chatMessage', (data) => {
         const { lobbyId, message } = data;
         
         if (!message || !lobbyId) {
+          console.error("Invalid chat message data:", data);
           return;
         }
         
         // Get username
         const username = this.playerNames.get(userId) || 'Player';
         
-        console.log(`Chat message from ${username}: ${message}`);
+        console.log(`Chat message from ${username} in lobby ${lobbyId}: ${message}`);
         
         // Create chat message object
         const chatMessage = {
@@ -271,8 +272,8 @@ class SocketManager {
           history.shift();
         }
         
-        // Broadcast message to all other players in the room
-        socket.to(lobbyId).emit('chatMessage', chatMessage);
+        // Broadcast message to all players in the room, including sender
+        this.io.to(lobbyId).emit('chatMessage', chatMessage);
       });
       
       // Handle disconnection
@@ -291,9 +292,7 @@ class SocketManager {
     });
   }
   
-  
-
-  // Handle a player leaving a game room
+  // Handle a player leaving a game room - FIXED
   async handlePlayerLeaving(userId, roomId) {
     console.log(`Handling player ${userId} leaving room ${roomId}`);
     
@@ -326,6 +325,20 @@ class SocketManager {
           
           // Clean up chat history too
           this.chatHistory.delete(roomId);
+          
+          // IMPORTANT FIX: Also remove the lobby from the database
+          try {
+            const lobbiesCollection = this.db.collection("lobbies");
+            const result = await lobbiesCollection.deleteOne({ _id: new ObjectId(roomId) });
+            
+            if (result.deletedCount === 1) {
+              console.log(`Successfully deleted lobby ${roomId} from database`);
+            } else {
+              console.log(`Lobby ${roomId} not found in database or already deleted`);
+            }
+          } catch (error) {
+            console.error(`Error deleting lobby ${roomId} from database:`, error);
+          }
         } else {
           // Otherwise broadcast updated game state
           this.broadcastGameState(roomId);
@@ -848,5 +861,3 @@ class SocketManager {
     return this.instance;
   }
 }
-
-module.exports = SocketManager;

@@ -218,14 +218,14 @@ class PokerSocketClient {
     return true;
   }
   
-  // Send a chat message
+  // Send a chat message - FIXED
   sendChatMessage(message) {
     if (!this.isConnected || !this.gameId) {
       console.error('Cannot send chat message: not connected or no game ID');
       return false;
     }
     
-    console.log('Sending chat message:', message);
+    console.log('Sending chat message to lobby:', this.gameId, message);
     this.socket.emit('chatMessage', {
       lobbyId: this.gameId,
       message: message
