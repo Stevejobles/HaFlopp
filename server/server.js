@@ -119,32 +119,50 @@ app.use((req, res, next) => {
     return next();
   }
   
-  // Check if user is authenticated
+  // Check if user is authenticated in session
   if (req.session.userId) {
-    // User is logged in, continue to the requested page
+    // User is logged in via session, continue to the requested page
     return next();
-  } else {
-    // Check for authentication cookie
-    const token = req.cookies.rememberToken;
-    if (token) {
-      try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        req.session.userId = decoded.userId;
-        return next();
-      } catch (error) {
-        console.error('Token verification error:', error);
-        res.clearCookie('rememberToken');
-      }
+  } 
+  
+  // Check for authentication cookies
+  const sessionToken = req.cookies.sessionToken;
+  const rememberToken = req.cookies.rememberToken;
+  
+  if (sessionToken) {
+    try {
+      // Verify the session token
+      const decoded = jwt.verify(sessionToken, JWT_SECRET);
+      req.session.userId = decoded.userId;
+      return next();
+    } catch (error) {
+      console.error('Session token verification error:', error);
+      // Clear invalid session token
+      res.clearCookie('sessionToken');
+      // Continue to check other auth methods
     }
-    
-    // If it's an API request, return 401 Unauthorized
-    if (req.path.startsWith('/api/')) {
-      return res.status(401).json({ message: 'Authentication required' });
-    }
-    
-    // Otherwise redirect to login page
-    return res.redirect('/Screens/login.html');
   }
+  
+  if (rememberToken) {
+    try {
+      // Verify the remember token
+      const decoded = jwt.verify(rememberToken, JWT_SECRET);
+      req.session.userId = decoded.userId;
+      return next();
+    } catch (error) {
+      console.error('Remember token verification error:', error);
+      // Clear invalid remember token
+      res.clearCookie('rememberToken');
+    }
+  }
+  
+  // If it's an API request, return 401 Unauthorized
+  if (req.path.startsWith('/api/')) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+  
+  // Otherwise redirect to login page
+  return res.redirect('/Screens/login.html');
 });
 
 // Root route - redirect to index.html if authenticated
@@ -274,17 +292,31 @@ app.post('/api/login', async (req, res) => {
     });
     console.log("User logged in:", username, "Session ID:", req.session.id);
     
-    // If remember me is checked, set a persistent cookie
+    // Create a session token (expires when browser is closed)
+    const sessionToken = jwt.sign(
+      { userId: user._id.toString() },
+      JWT_SECRET,
+      { expiresIn: '12h' } // Session token expires after 12 hours of inactivity
+    );
+    
+    // Set session token cookie (no maxAge = session cookie that expires when browser closes)
+    res.cookie('sessionToken', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    });
+    
+    // If remember me is checked, also set a persistent cookie
     if (rememberMe) {
       // Create a JWT token with user ID
-      const token = jwt.sign(
+      const rememberToken = jwt.sign(
         { userId: user._id.toString() },
         JWT_SECRET,
         { expiresIn: '14d' } // Token expires after 14 days
       );
       
       // Set the token in a cookie
-      res.cookie('rememberToken', token, {
+      res.cookie('rememberToken', rememberToken, {
         maxAge: 14 * 24 * 60 * 60 * 1000, // 14 days
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -314,7 +346,8 @@ app.post('/api/logout', (req, res) => {
   // Clear the session
   req.session.destroy();
   
-  // Clear the remember me cookie
+  // Clear all authentication cookies
+  res.clearCookie('sessionToken');
   res.clearCookie('rememberToken');
   
   res.json({ message: 'Logged out successfully' });
@@ -330,6 +363,7 @@ app.get('/api/user', async (req, res) => {
       
       if (!user) {
         req.session.destroy();
+        res.clearCookie('sessionToken');
         res.clearCookie('rememberToken');
         return res.status(401).json({ message: 'User not found' });
       }
@@ -344,11 +378,14 @@ app.get('/api/user', async (req, res) => {
       });
     }
     
-    // If not in session, check for authentication cookie
-    const token = req.cookies.rememberToken;
-    if (token) {
+    // If not in session, check for authentication cookies
+    const sessionToken = req.cookies.sessionToken;
+    const rememberToken = req.cookies.rememberToken;
+    
+    // First try session token (temporary login)
+    if (sessionToken) {
       try {
-        const decoded = jwt.verify(token, JWT_SECRET);
+        const decoded = jwt.verify(sessionToken, JWT_SECRET);
         const usersCollection = db.collection("users");
         const user = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
         
@@ -364,7 +401,31 @@ app.get('/api/user', async (req, res) => {
           });
         }
       } catch (error) {
-        console.error('Token verification error:', error);
+        console.error('Session token verification error:', error);
+        res.clearCookie('sessionToken');
+      }
+    }
+    
+    // Then try remember token (long-term login)
+    if (rememberToken) {
+      try {
+        const decoded = jwt.verify(rememberToken, JWT_SECRET);
+        const usersCollection = db.collection("users");
+        const user = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
+        
+        if (user) {
+          req.session.userId = user._id;
+          return res.json({ 
+            user: {
+              id: user._id,
+              username: user.username,
+              email: user.email,
+              chips: user.chips
+            } 
+          });
+        }
+      } catch (error) {
+        console.error('Remember token verification error:', error);
         res.clearCookie('rememberToken');
       }
     }
