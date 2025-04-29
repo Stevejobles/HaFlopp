@@ -579,6 +579,185 @@ app.post('/api/user/add-chips', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * Forgot password API - Request password reset email
+ * POST /api/forgot-password
+ */
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+    
+    const usersCollection = db.collection("users");
+    const user = await usersCollection.findOne({ email });
+    
+    if (!user) {
+      // For security reasons, don't disclose whether the email exists
+      return res.status(200).json({ 
+        message: 'If an account with that email exists, a password reset link has been sent.' 
+      });
+    }
+    
+    // Generate a random token
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    
+    // Set expiration time (1 hour from now)
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1);
+    
+    // Store the token in the reset_tokens collection
+    const resetTokensCollection = db.collection("reset_tokens");
+    await resetTokensCollection.insertOne({
+      userId: user._id,
+      token,
+      email: user.email,
+      expiresAt
+    });
+    
+    // Send the email - Make sure you have nodemailer configured
+    const nodemailer = require('nodemailer');
+    
+    // Create a test account if no transport is configured
+    let transporter;
+    // Check if you have SMTP settings in environment variables
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT || 587,
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        }
+      });
+    } else {
+      // Create a test account for development/testing
+      console.log('No SMTP settings found. Creating test account...');
+      const testAccount = await nodemailer.createTestAccount();
+      
+      transporter = nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        secure: false,
+        auth: {
+          user: testAccount.user,
+          pass: testAccount.pass
+        }
+      });
+      
+      console.log('Test email account created:', testAccount.user);
+    }
+    
+    // Get the base URL - in production, this would be your actual domain
+    const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+    
+    // Setup email data
+    const mailOptions = {
+      from: process.env.SMTP_FROM || '"Poker Game" <noreply@pokergame.com>',
+      to: user.email,
+      subject: 'Password Reset Request',
+      text: `You requested a password reset. Please use the following link to reset your password: ${baseUrl}/reset-password.html?token=${token}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2c3e50;">Password Reset Request</h2>
+          <p>You requested a password reset for your Poker Game account.</p>
+          <p>Please click the button below to reset your password:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${baseUrl}/reset-password.html?token=${token}" 
+               style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
+              Reset Password
+            </a>
+          </div>
+          <p>This link will expire in 1 hour.</p>
+          <p>If you didn't request this password reset, please ignore this email.</p>
+          <hr style="border: 1px solid #eee; margin: 20px 0;">
+          <p style="color: #7f8c8d; font-size: 12px;">Poker Game Team</p>
+        </div>
+      `
+    };
+    
+    // Send mail
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Password reset email sent:', info.messageId);
+    
+    // Log test URL if using Ethereal
+    if (!process.env.SMTP_HOST) {
+      console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+    }
+    
+    // Return success message without revealing if the email exists
+    res.status(200).json({ 
+      message: 'If an account with that email exists, a password reset link has been sent.' 
+    });
+    
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ message: 'Error sending password reset email' });
+  }
+});
+
+/**
+ * Reset password API
+ * POST /api/reset-password
+ */
+app.post('/api/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    
+    if (!token || !password) {
+      return res.status(400).json({ message: 'Token and password are required' });
+    }
+    
+    // Validate password
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    }
+    
+    // Find the token
+    const resetTokensCollection = db.collection("reset_tokens");
+    const tokenDoc = await resetTokensCollection.findOne({ token });
+    
+    if (!tokenDoc) {
+      return res.status(400).json({ message: 'Invalid or expired token' });
+    }
+    
+    // Check if token is expired
+    if (tokenDoc.expiresAt < new Date()) {
+      await resetTokensCollection.deleteOne({ token });
+      return res.status(400).json({ message: 'Token has expired' });
+    }
+    
+    // Hash the new password
+    const bcrypt = require('bcrypt');
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    
+    // Update the user's password
+    const usersCollection = db.collection("users");
+    const result = await usersCollection.updateOne(
+      { _id: tokenDoc.userId },
+      { $set: { password: hashedPassword, updated_at: new Date() } }
+    );
+    
+    if (result.modifiedCount === 0) {
+      return res.status(400).json({ message: 'Failed to update password' });
+    }
+    
+    // Delete the token
+    await resetTokensCollection.deleteOne({ token });
+    
+    res.status(200).json({ message: 'Password has been reset successfully' });
+    
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Error resetting password' });
+  }
+});
+
 // Direct screen routes for our HTML pages
 app.get('/Screens/:page', (req, res) => {
   console.log(`Serving screen: ${req.params.page}`);
