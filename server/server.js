@@ -641,9 +641,66 @@ app.post('/api/user/add-chips', requireAuth, async (req, res) => {
 });
 
 /**
+ * Quick add money API - Adds a fixed amount to the user's balance
+ * POST /api/user/quick-add-money
+ */
+app.post('/api/user/quick-add-money', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    // Fixed amount to add - you can change this value as needed
+    const QUICK_ADD_AMOUNT = 1000;
+    
+    // Get current user
+    const usersCollection = db.collection("users");
+    const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Calculate new chip total
+    const currentChips = user.chips || 0;
+    const newTotal = currentChips + QUICK_ADD_AMOUNT;
+    
+    // Update user's chips in the database
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { chips: newTotal } }
+    );
+    
+    if (result.modifiedCount === 0) {
+      return res.status(500).json({ message: 'Failed to update chips' });
+    }
+    
+    // Return success with new total
+    res.json({
+      message: 'Chips added successfully',
+      chips: newTotal,
+      added: QUICK_ADD_AMOUNT
+    });
+    
+  } catch (error) {
+    console.error('Quick add chips error:', error);
+    res.status(500).json({ message: 'An error occurred while adding chips' });
+  }
+});
+
+/**
  * Forgot password API - Request password reset email
  * POST /api/forgot-password
- */
+*/
+
+nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  },
+  debug: true, // Enable verbose logging
+  logger: true  // Log to console
+});
 
 app.post('/api/forgot-password', async (req, res) => {
   let emailSent = false;
@@ -651,51 +708,53 @@ app.post('/api/forgot-password', async (req, res) => {
   try {
     // Check if we have SMTP settings in environment variables
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-      console.log(`Attempting to connect to SMTP server: ${process.env.SMTP_HOST || 'gmail'}`);
+      console.log('----- EMAIL SENDING ATTEMPT -----');
+      console.log(`SMTP_HOST: ${process.env.SMTP_HOST || 'not set'}`);
+      console.log(`SMTP_PORT: ${process.env.SMTP_PORT || '587 (default)'}`);
+      console.log(`SMTP_SECURE: ${process.env.SMTP_SECURE || 'false (default)'}`);
+      console.log(`SMTP_USER: ${process.env.SMTP_USER.substring(0, 3)}...`); // Show only first 3 chars for security
+      console.log(`SMTP_PASS: ${process.env.SMTP_PASS ? '******** (set)' : 'not set'}`);
 
-      // For Gmail, we'll use the specialized service setting if the host is gmail
-      let transportConfig;
+      // Gmail-specific transport configuration
+      const transportConfig = {
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        },
+        // Log all SMTP traffic for debugging
+        debug: true,
+        logger: true
+      };
 
-      if (process.env.SMTP_HOST === 'smtp.gmail.com') {
-        // Gmail-specific transport configuration
-        transportConfig = {
-          service: 'gmail',  // Using gmail preset
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS
-          },
-          // Extended timeout settings to prevent quick timeouts
-          connectionTimeout: 60000, // 60 seconds
-          greetingTimeout: 30000,   // 30 seconds
-          socketTimeout: 60000      // 60 seconds
-        };
-        console.log('Using Gmail preset configuration');
-      } else {
-        // Standard SMTP configuration for other providers
-        transportConfig = {
-          host: process.env.SMTP_HOST,
-          port: process.env.SMTP_PORT || 587,
-          secure: process.env.SMTP_SECURE === 'true',
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS
-          },
-          // Extended timeout settings
-          connectionTimeout: 30000,
-          greetingTimeout: 15000,
-          socketTimeout: 30000
-        };
-        console.log('Using standard SMTP configuration');
-      }
+      console.log('Creating transporter with config:', JSON.stringify({
+        ...transportConfig,
+        auth: {
+          user: transportConfig.auth.user.substring(0, 3) + '...',
+          pass: '********'
+        }
+      }));
 
       const transporter = nodemailer.createTransport(transportConfig);
 
-      // Get the base URL
-      const baseUrl = process.env.BASE_URL || `http://${req.get('host')}`;
+      // Test the connection explicitly before sending
+      console.log('Testing SMTP connection...');
+      try {
+        const verified = await transporter.verify();
+        console.log('SMTP connection verified successfully:', verified);
+      } catch (verifyError) {
+        console.error('SMTP connection verification FAILED:', verifyError);
+        throw new Error(`SMTP verification failed: ${verifyError.message}`);
+      }
 
-      // Setup email data
+      // Get the base URL
+      const baseUrl = process.env.BASE_URL || `http://${req.get('host') || 'localhost:3000'}`;
+
+      // Setup email data with debugging info included in the body
       const mailOptions = {
-        from: process.env.SMTP_FROM || process.env.SMTP_USER, // Use SMTP_FROM if available, otherwise use SMTP_USER
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
         to: user.email,
         subject: 'Password Reset Request',
         text: `You requested a password reset. Please use the following link to reset your password: ${baseUrl}/Screens/reset-password.html?token=${token}`,
@@ -714,38 +773,63 @@ app.post('/api/forgot-password', async (req, res) => {
           <p>If you didn't request this password reset, please ignore this email.</p>
           <hr style="border: 1px solid #eee; margin: 20px 0;">
           <p style="color: #7f8c8d; font-size: 12px;">Poker Game Team</p>
+          <p style="color: #999; font-size: 10px;">Debug info: Sent from ${baseUrl} at ${new Date().toISOString()}</p>
         </div>
       `
       };
 
-      // Create a promise that rejects in 30 seconds to prevent hanging
-      const sendWithTimeout = async () => {
-        return new Promise((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            reject(new Error('Email sending timed out after 30 seconds'));
-          }, 30000);
+      console.log('Mail options prepared:', JSON.stringify({
+        ...mailOptions,
+        to: mailOptions.to.substring(0, 3) + '...' // Hide full email for security
+      }));
 
-          transporter.sendMail(mailOptions, (error, info) => {
-            clearTimeout(timeout);
-            if (error) {
-              reject(error);
-            } else {
-              resolve(info);
-            }
+      // Use the callback version of sendMail for more control
+      console.log('Attempting to send email...');
+
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.error('Email sending error (from callback):', error);
+          // Log specific error details for debugging
+          if (error.code) console.error('Error code:', error.code);
+          if (error.command) console.error('Failed command:', error.command);
+          if (error.response) console.error('Server response:', error.response);
+
+          // Return as development mode if we encounter SMTP errors
+          return res.status(200).json({
+            message: 'If an account with that email exists, a password reset link has been sent.',
+            development: true,
+            token: token,
+            error: error.message,
+            error_code: error.code,
+            error_command: error.command
           });
-        });
-      };
+        } else {
+          console.log('Email sent successfully:', info);
+          console.log('Message ID:', info.messageId);
+          console.log('Response:', info.response);
 
-      // Try to send the email with timeout protection
-      try {
-        console.log('Attempting to send email...');
-        const info = await sendWithTimeout();
-        console.log('Password reset email sent successfully:', info.messageId);
-        emailSent = true;
-      } catch (sendError) {
-        console.error('Email sending error:', sendError);
-        throw sendError; // Re-throw to be caught by the outer try/catch
-      }
+          // Return success message
+          return res.status(200).json({
+            message: 'If an account with that email exists, a password reset link has been sent.'
+          });
+        }
+      });
+
+      // If sendMail hasn't returned after 30 seconds, assume it's hanging and continue
+      setTimeout(() => {
+        if (!res.headersSent) {
+          console.log('Email sending timed out after 30 seconds');
+          return res.status(200).json({
+            message: 'If an account with that email exists, a password reset link has been sent.',
+            development: true,
+            token: token,
+            error: 'Email sending timed out'
+          });
+        }
+      }, 30000);
+
+      // Don't call res.json here, as it will be called in the callback or timeout
+      return;
 
     } else {
       // Development fallback - log instead of actually sending
@@ -767,35 +851,15 @@ app.post('/api/forgot-password', async (req, res) => {
   } catch (error) {
     console.error('Forgot password error:', error);
 
-    // Return as development mode if we encounter SMTP errors
-    if (error.code === 'ETIMEDOUT' ||
-      error.code === 'ECONNREFUSED' ||
-      error.code === 'EAUTH' ||
-      error.message.includes('timeout')) {
-
-      console.log('SMTP connection failed. Falling back to development mode.');
-
-      return res.status(200).json({
-        message: 'If an account with that email exists, a password reset link has been sent.',
-        development: true,
-        token: token, // Return token for testing purposes
-        smtp_error: error.message // Include error for debugging
-      });
-    }
-
-    // Fall back to development mode for any email error
+    // Return as development mode if we encounter any errors
     return res.status(200).json({
       message: 'If an account with that email exists, a password reset link has been sent.',
       development: true,
       token: token,
-      email_error: error.message
+      error: error.message
     });
   }
 
-  // Return success message without revealing if the email exists
-  res.status(200).json({
-    message: 'If an account with that email exists, a password reset link has been sent.'
-  });
 });
 
 /**
