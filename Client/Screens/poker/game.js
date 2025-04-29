@@ -1,4 +1,4 @@
-// Main Poker Game Logic - Debugging Version
+// Main Poker Game Logic - Optimized Version
 class PokerGame {
   constructor() {
     console.log('[PokerGame] Initializing...');
@@ -29,8 +29,26 @@ class PokerGame {
     this.playerActions = {};
     this.isGameStarted = false;
     this.debug = true;
+    this.lastMessageSent = null;
 
     // DOM elements
+    this.initDOMElements();
+
+    // Verify DOM elements
+    this.verifyDOMElements();
+
+    // Set up event listeners
+    this.setupEventListeners();
+
+    // Socket connection
+    this.initSocket();
+
+    // Initialize the game
+    this.init();
+  }
+  
+  // Initialize DOM elements
+  initDOMElements() {
     this.potElement = document.querySelector('.pot-number');
     this.usersContainer = document.querySelector('.users');
     this.otherUsersContainer = document.querySelector('.other-users');
@@ -54,14 +72,10 @@ class PokerGame {
 
     // Get all action buttons
     this.actionButtons = document.querySelectorAll('.action-btn');
-
-    // Verify DOM elements
-    this.verifyDOMElements();
-
-    // Set up event listeners
-    this.setupEventListeners();
-
-    // Socket connection
+  }
+  
+  // Initialize socket connection
+  initSocket() {
     this.socket = window.pokerSocket;
     if (!this.socket) {
       console.error('[PokerGame] PokerSocket not found! Creating a new one...');
@@ -75,9 +89,6 @@ class PokerGame {
       }
     }
     this.setupSocketCallbacks();
-
-    // Initialize the game
-    this.init();
   }
   
   log(...args) {
@@ -155,9 +166,6 @@ class PokerGame {
         this.handleAction('raise', amount);
       });
 
-      // PROBLEM: This section has no access to 'socket'
-      // REMOVED: socket.on('requestGameState', (data) => { ... });
-
       // Bet amount controls
       this.betIncreaseBtn.addEventListener('click', () => this.adjustBetAmount(10));
       this.betDecreaseBtn.addEventListener('click', () => this.adjustBetAmount(-10));
@@ -214,9 +222,8 @@ class PokerGame {
       // Manual check to verify connection after a delay
       setTimeout(() => {
         if (!this.socket.isSocketConnected()) {
-          this.log('Socket not connected after timeout, attempting to reconnect');
-          this.socket.reconnect();
-          this.socket.joinGame(this.lobbyId);
+          this.log('Socket not connected after timeout, attempting reconnect');
+          this.tryReconnect();
         }
       }, 3000);
       
@@ -228,17 +235,30 @@ class PokerGame {
     }
   }
 
+  // Try to reconnect socket and join game
+  tryReconnect() {
+    this.log('Attempting to reconnect socket');
+    if (this.socket) {
+      if (typeof this.socket.reconnect === 'function') {
+        this.socket.reconnect();
+      } else if (this.currentUser && this.currentUser.id) {
+        this.socket.connectWithAuth(this.currentUser.id);
+      }
+      
+      if (this.lobbyId) {
+        this.socket.joinGame(this.lobbyId);
+      }
+    }
+  }
+
+  // Request updated game state from server
   requestGameStateUpdate() {
     if (this.socket && this.socket.isSocketConnected()) {
       this.socket.requestGameState();
     } else {
       console.error("Socket not connected, can't request game state");
       this.addSystemMessage("Connection issues - trying to reconnect...");
-      
-      // Try to reconnect if socket is disconnected
-      if (this.socket) {
-        this.socket.reconnect();
-      }
+      this.tryReconnect();
     }
   }
 
@@ -303,6 +323,7 @@ class PokerGame {
       
       onChatHistory: (data) => {
         this.log('Chat history received:', data);
+        this.processChatHistory(data);
       },
 
       onPlayerAction: (data) => {
@@ -310,6 +331,17 @@ class PokerGame {
         this.updatePlayerAction(data);
       }
     });
+  }
+
+  // Process chat history
+  processChatHistory(data) {
+    if (data.history && Array.isArray(data.history)) {
+      this.log(`Processing ${data.history.length} chat history messages`);
+      data.history.forEach(msg => {
+        this.receiveChatMessage(msg);
+      });
+      this.scrollChatToBottom();
+    }
   }
 
   // Update game state based on server data
@@ -364,14 +396,17 @@ class PokerGame {
     // First set all cards to hidden
     cardElements.forEach(card => {
       card.classList.add('hidden');
-      card.textContent = '?';
+      card.setAttribute('data-value', '?');
+      card.setAttribute('data-suit', '?');
     });
     
     // Then update visible cards
     for (let i = 0; i < tableCards.length && i < cardElements.length; i++) {
+      const formattedCard = this.formatCard(tableCards[i]);
       cardElements[i].classList.remove('hidden');
-      cardElements[i].textContent = this.formatCard(tableCards[i]).display;
-      this.log(`Set card ${i} to ${this.formatCard(tableCards[i]).display}`);
+      cardElements[i].setAttribute('data-value', formattedCard.value);
+      cardElements[i].setAttribute('data-suit', formattedCard.suit);
+      this.log(`Set card ${i} to ${formattedCard.display}`);
     }
   }
 
@@ -422,213 +457,13 @@ class PokerGame {
     if (player.isCurrentTurn) userElement.classList.add('current-turn');
     
     // Get role indicators
-    let roleIndicator = '';
-    if (player.isDealer) roleIndicator += '<span class="role dealer">D</span>';
-    if (player.isSmallBlind) roleIndicator += '<span class="role small-blind">SB</span>';
-    if (player.isBigBlind) roleIndicator += '<span class="role big-blind">BB</span>';
+    let roleIndicator = this.getRoleIndicators(player);
     
     // Build cards HTML
-    let cardsHtml = '';
-    if (this.playerState && this.playerState.hand) {
-      cardsHtml = `
-        <div class="cards">
-          <div class="card">
-            <div class="number">${this.formatCard(this.playerState.hand[0]).display}</div>
-          </div>
-          <div class="card">
-            <div class="number">${this.formatCard(this.playerState.hand[1]).display}</div>
-          </div>
-        </div>
-      `;
-    } else {
-      cardsHtml = `
-        <div class="cards">
-          <div class="card">
-            <div class="number">?</div>
-          </div>
-          <div class="card">
-            <div class="number">?</div>
-          </div>
-        </div>
-      `;
-    }
+    let cardsHtml = this.getPlayerCardsHtml(player);
 
-    function renderCard(card, faceUp) {
-      // Replace question mark fallback with proper loading state
-      if (!card) {
-        return '<div class="card back"></div>'; // Show card back instead of "?"
-      }
-      
-      // Make sure we're checking if the card should be face up
-      const isFaceUp = faceUp !== undefined ? faceUp : card.faceUp;
-      
-      // If card is not face up, show the back
-      if (!isFaceUp) {
-        return '<div class="card back"></div>';
-      }
-      
-      // Make sure we have the correct properties before accessing them
-      const suit = card.suit || '';
-      const value = card.value || '';
-      
-      // Use proper card rendering with appropriate classes
-      return `<div class="card ${suit} ${value}"></div>`;
-    }
-
-    function updateCardDisplay(cardElement, card, faceUp) {
-      // Clear previous content
-      cardElement.innerHTML = '';
-      
-      // If no card data, show empty slot rather than "?"
-      if (!card) {
-        cardElement.classList.add('empty-slot');
-        return;
-      }
-      
-      // Remove empty slot class if it was previously applied
-      cardElement.classList.remove('empty-slot');
-      
-      // Determine if card should be face up
-      const showFaceUp = faceUp !== undefined ? faceUp : card.faceUp;
-      
-      // Update the card element with proper classes
-      if (showFaceUp) {
-        cardElement.className = `card ${card.suit} ${card.value}`;
-        
-        // Add specific card content if needed
-        // For example: rank and suit symbols in the corners
-        const rankSymbol = getRankSymbol(card.value);
-        const suitSymbol = getSuitSymbol(card.suit);
-        
-        // Add the content directly rather than using "?" as fallback
-        cardElement.innerHTML = `
-          <div class="corner top-left">
-            <div class="rank">${rankSymbol}</div>
-            <div class="suit">${suitSymbol}</div>
-          </div>
-          <div class="corner bottom-right">
-            <div class="rank">${rankSymbol}</div>
-            <div class="suit">${suitSymbol}</div>
-          </div>
-        `;
-      } else {
-        // Show card back
-        cardElement.className = 'card back';
-        cardElement.innerHTML = '';
-      }
-    }
-    
-    // Helper functions for card symbols (if needed)
-    function getRankSymbol(value) {
-      // Convert numeric values to appropriate symbols (A, K, Q, J, etc.)
-      const symbols = {
-        '1': 'A',
-        '11': 'J',
-        '12': 'Q',
-        '13': 'K'
-      };
-      
-      return symbols[value] || value;
-    }
-    
-    function getSuitSymbol(suit) {
-      // Convert suit names to symbols
-      const symbols = {
-        'hearts': '♥',
-        'diamonds': '♦',
-        'clubs': '♣',
-        'spades': '♠'
-      };
-      
-      return symbols[suit] || suit;
-    }
-
-    function updatePlayerHand(player, cards) {
-      // Get the DOM element for the player's hand
-      const handElement = document.getElementById(`player-${player}-hand`);
-      
-      // Clear existing cards
-      handElement.innerHTML = '';
-      
-      // Exit early if no cards (show empty hand instead of "?")
-      if (!cards || !cards.length) {
-        return;
-      }
-      
-      // Create fixed positions for cards (NOT dynamic)
-      const positions = getFixedCardPositions(player, cards.length);
-      
-      // Render each card with its fixed position
-      cards.forEach((card, index) => {
-        // Create card element
-        const cardElement = document.createElement('div');
-        
-        // Set fixed position using the pre-calculated positions
-        cardElement.style.left = `${positions[index].x}px`;
-        cardElement.style.top = `${positions[index].y}px`;
-        
-        // Add proper card rendering
-        cardElement.innerHTML = renderCard(card, card.faceUp);
-        
-        // Add to hand
-        handElement.appendChild(cardElement);
-      });
-    }
-    
-    // Function to get FIXED positions for cards
-    function getFixedCardPositions(player, cardCount) {
-      // Pre-defined positions for different numbers of cards
-      const fixedPositions = {
-        // For player 1 (assuming bottom of screen)
-        '1': {
-          '1': [{x: 400, y: 300}],
-          '2': [{x: 380, y: 300}, {x: 420, y: 300}],
-          '3': [{x: 360, y: 300}, {x: 400, y: 300}, {x: 440, y: 300}],
-          // Add more predefined positions as needed
-        },
-        // For player 2 (assuming left side)
-        '2': {
-          '1': [{x: 200, y: 200}],
-          '2': [{x: 200, y: 180}, {x: 200, y: 220}],
-          // Add more predefined positions as needed
-        },
-        // Add more players as needed
-      };
-      
-      // Return the fixed positions for this player and card count
-      return fixedPositions[player][cardCount] || 
-        // Fallback to a default fixed layout if specific configuration not found
-        Array(cardCount).fill().map((_, i) => ({
-          x: 350 + (i * 30),
-          y: player === '1' ? 300 : 200
-        }));
-    }
-
-    function initializeGame() {
-      // Initialize the deck first
-      const deck = createDeck();
-      
-      // Make sure the deck is fully created and shuffled before dealing
-      if (!deck || deck.length === 0) {
-        console.error('Deck initialization failed');
-        return;
-      }
-      
-      // Deal to players only after deck is ready
-      const players = dealCards(deck);
-      
-      // Only update UI after all data is ready
-      updateGameUI(players);
-    }
-    
     // Generate action display
-    let actionDisplay = '';
-    if (this.playerActions[player.id]) {
-      const action = this.playerActions[player.id];
-      actionDisplay = `<div class="player-action ${action.type}">${action.text}</div>`;
-    } else {
-      actionDisplay = `<div class="player-action hidden"></div>`;
-    }
+    let actionDisplay = this.getActionDisplay(player.id);
     
     // Build HTML
     userElement.innerHTML = `
@@ -642,6 +477,52 @@ class PokerGame {
     `;
     
     this.usersContainer.appendChild(userElement);
+  }
+
+  // Get HTML for player cards
+  getPlayerCardsHtml(player) {
+    if (this.playerState && this.playerState.hand && this.playerState.hand.length >= 2) {
+      return `
+        <div class="cards">
+          <div class="card">
+            <div class="number">${this.formatCard(this.playerState.hand[0]).display}</div>
+          </div>
+          <div class="card">
+            <div class="number">${this.formatCard(this.playerState.hand[1]).display}</div>
+          </div>
+        </div>
+      `;
+    } else {
+      return `
+        <div class="cards">
+          <div class="card">
+            <div class="number">?</div>
+          </div>
+          <div class="card">
+            <div class="number">?</div>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // Get role indicators (dealer, small blind, big blind)
+  getRoleIndicators(player) {
+    let indicators = '';
+    if (player.isDealer) indicators += '<span class="role dealer">D</span>';
+    if (player.isSmallBlind) indicators += '<span class="role small-blind">SB</span>';
+    if (player.isBigBlind) indicators += '<span class="role big-blind">BB</span>';
+    return indicators;
+  }
+
+  // Get action display HTML
+  getActionDisplay(playerId) {
+    if (this.playerActions[playerId]) {
+      const action = this.playerActions[playerId];
+      return `<div class="player-action ${action.type}">${action.text}</div>`;
+    } else {
+      return `<div class="player-action hidden"></div>`;
+    }
   }
 
   // Render other players
@@ -671,19 +552,10 @@ class PokerGame {
       if (player.isCurrentTurn) playerElement.classList.add('current-turn');
   
       // Add role indicators
-      let roleIndicator = '';
-      if (player.isDealer) roleIndicator += '<span class="role dealer">D</span>';
-      if (player.isSmallBlind) roleIndicator += '<span class="role small-blind">SB</span>';
-      if (player.isBigBlind) roleIndicator += '<span class="role big-blind">BB</span>';
+      let roleIndicator = this.getRoleIndicators(player);
   
       // Generate action display
-      let actionDisplay = '';
-      if (this.playerActions[player.id]) {
-        const action = this.playerActions[player.id];
-        actionDisplay = `<div class="player-action ${action.type}">${action.text}</div>`;
-      } else {
-        actionDisplay = `<div class="player-action hidden"></div>`;
-      }
+      let actionDisplay = this.getActionDisplay(player.id);
   
       playerElement.innerHTML = `
         <div class="cards">
@@ -707,10 +579,8 @@ class PokerGame {
     this.log('Handling player join:', data);
     this.addSystemMessage(`${data.username || 'A player'} has joined the table.`);
     
-    // Refresh game state
-    if (this.socket && this.socket.isSocketConnected()) {
-      this.socket.joinGame(this.lobbyId);
-    }
+    // Request a refresh of the game state
+    this.requestGameStateUpdate();
   }
 
   // Handle player leaving
@@ -730,6 +600,9 @@ class PokerGame {
         }
       }, 500);
     }
+    
+    // Request a refresh of the game state
+    this.requestGameStateUpdate();
   }
 
   // Update game status display
@@ -785,8 +658,6 @@ class PokerGame {
     this.gameStatusElement.textContent = statusText;
   }
   
-  
-
   // Update action buttons based on available actions
   updateActionButtons(availableActions) {
     this.log('Updating action buttons with available actions:', availableActions);
@@ -901,12 +772,11 @@ class PokerGame {
           this.updateActionButtons(this.playerState.availableActions);
         }
       }, 1000);
+      
+      // Try to reconnect
+      this.tryReconnect();
     }
   }
-  
-  
-  
-  
   
   // Update player action display
   updatePlayerAction(data) {
@@ -914,52 +784,44 @@ class PokerGame {
     
     this.log('Updating player action display:', userId, action, amount);
     
-    let actionText = '';
-    let actionType = '';
-    
-    switch (action) {
-      case 'fold':
-        actionText = 'Folded';
-        actionType = 'folded';
-        break;
-      case 'check':
-        actionText = 'Checked';
-        actionType = 'checked';
-        break;
-      case 'call':
-        actionText = `Called $${amount || ''}`;
-        actionType = 'bet';
-        break;
-      case 'bet':
-        actionText = `Bet $${amount || ''}`;
-        actionType = 'bet';
-        break;
-      case 'raise':
-        actionText = `Raised to $${amount || ''}`;
-        actionType = 'raised';
-        break;
-      case 'all-in':
-        actionText = 'All In!';
-        actionType = 'all-in';
-        break;
-      default:
-        this.log('Unknown action type:', action);
-        return;
-    }
+    // Map action to display text and class
+    const actionDisplay = this.getActionDisplayForType(action, amount);
+    if (!actionDisplay) return;
     
     // Store action
     this.playerActions[userId] = {
-      type: actionType,
-      text: actionText
+      type: actionDisplay.type,
+      text: actionDisplay.text
     };
     
     // Update player elements
-    this.updatePlayerActionElements(userId, actionType, actionText);
+    this.updatePlayerActionElements(userId, actionDisplay.type, actionDisplay.text);
     
     // Add to chat
     const playerName = userId === this.currentUser.id ? 'You' :
       this.gameState?.players.find(p => p.id === userId)?.username || 'Player';
-    this.addSystemMessage(`${playerName} ${actionText.toLowerCase()}`);
+    this.addSystemMessage(`${playerName} ${actionDisplay.text.toLowerCase()}`);
+  }
+  
+  // Get action display text and class based on action type
+  getActionDisplayForType(action, amount) {
+    switch (action) {
+      case 'fold':
+        return { text: 'Folded', type: 'folded' };
+      case 'check':
+        return { text: 'Checked', type: 'checked' };
+      case 'call':
+        return { text: `Called $${amount || ''}`, type: 'bet' };
+      case 'bet':
+        return { text: `Bet $${amount || ''}`, type: 'bet' };
+      case 'raise':
+        return { text: `Raised to $${amount || ''}`, type: 'raised' };
+      case 'all-in':
+        return { text: 'All In!', type: 'all-in' };
+      default:
+        this.log('Unknown action type:', action);
+        return null;
+    }
   }
   
   // Update player action elements in the DOM
@@ -1070,14 +932,13 @@ class PokerGame {
       timestamp: new Date().toISOString(),
       isSelf: true
     };
+    
+    // Store last message sent for deduplication
+    this.lastMessageSent = messageData;
   
     // Send message to server
     if (this.socket && this.socket.isSocketConnected()) {
-      // Explicitly include the lobby ID in the message data
-      this.socket.emit('chatMessage', {
-        lobbyId: this.lobbyId,
-        message: message
-      });
+      this.socket.sendChatMessage(message);
   
       // Add message to chat locally immediately
       this.addChatMessage(messageData);
@@ -1089,9 +950,7 @@ class PokerGame {
       this.addSystemMessage("Message not sent - connection issues");
       
       // Try to reconnect socket
-      if (this.socket) {
-        this.socket.reconnect();
-      }
+      this.tryReconnect();
     }
   }
 
@@ -1099,9 +958,11 @@ class PokerGame {
   receiveChatMessage(data) {
     this.log('Received chat message:', data);
 
-    // Skip own messages (we already added them locally) - FIXED to check properly
-    if (data.userId === this.currentUser.id && data.timeStamp !== (this.lastMessageSent?.timeStamp)) {
-      this.log('Skipping own message');
+    // Skip own messages (we already added them locally)
+    if (data.userId === this.currentUser.id && 
+        this.lastMessageSent && 
+        data.message === this.lastMessageSent.message) {
+      this.log('Skipping own message that was already displayed');
       return;
     }
 
@@ -1166,19 +1027,34 @@ class PokerGame {
     return div.innerHTML;
   }
   
+  // Check socket connection status
+  checkConnection() {
+    const isConnected = this.socket && this.socket.isSocketConnected();
+    this.log('Checking connection status:', isConnected ? 'Connected' : 'Disconnected');
+    
+    if (!isConnected) {
+      this.addSystemMessage('Connection check: Disconnected. Attempting to reconnect...');
+      this.tryReconnect();
+    } else {
+      this.addSystemMessage('Connection check: Connected to server.');
+      this.requestGameStateUpdate();
+    }
+    
+    return isConnected;
+  }
+  
   // Handle back button click
   handleBackButton() {
     this.log('Back button clicked');
     if (confirm('Are you sure you want to leave the game? This will remove you from the table.')) {
       // Disconnect socket
-      this.socket.disconnect();
-      clearInterval(this.gameStateTimer);
+      if (this.socket) {
+        this.socket.disconnect();
+      }
       window.location.href = '../index.html';
     }
   }
 }
-
-
 
 // Initialize the game when the page loads
 document.addEventListener('DOMContentLoaded', () => {
