@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { MongoClient, ObjectId } = require('mongodb');
 const http = require('http');
+const nodemailer = require('nodemailer');
 
 // Import our models
 const lobbyModel = require('./models/lobby');
