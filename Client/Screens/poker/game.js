@@ -73,6 +73,12 @@ class PokerGame {
     // Get all action buttons
     this.actionButtons = document.querySelectorAll('.action-btn');
   }
+
+  clearPlayerPositions() {
+    document
+      .querySelectorAll('.player-position')
+      .forEach(pos => pos.innerHTML = '');
+  }
   
   // Initialize socket connection
   initSocket() {
@@ -350,37 +356,34 @@ class PokerGame {
       this.log('Received empty game state');
       return;
     }
-    
+
     this.log('Updating game state:', gameState);
     this.log('Player state:', playerState);
-    
+
     this.gameState = gameState;
     this.playerState = playerState;
 
-    // Update pot
+    // 1) Update pot
     if (gameState.pot !== undefined) {
       this.potElement.textContent = gameState.pot;
       this.log('Updated pot to:', gameState.pot);
     }
 
-    // Update table cards
+    // 2) Update community cards
     this.updateTableCards(gameState.tableCards || []);
 
-    // Clear previous player elements
+    // 3) Clear out your seat
     if (this.usersContainer) {
       this.usersContainer.innerHTML = '';
     }
-    if (this.otherUsersContainer) {
-      this.otherUsersContainer.innerHTML = '';
-    }
+    // 4) Clear only the fixed seat CONTENTS (leaves the markers)
+    this.clearPlayerPositions();
 
-    // Update players
+    // 5) Re-render everyone
     this.renderPlayers(gameState.players || []);
 
-    // Update game status
+    // 6) Update status & buttons as before
     this.updateGameStatus(gameState);
-
-    // Update action buttons based on available actions
     if (playerState && playerState.availableActions) {
       this.updateActionButtons(playerState.availableActions);
     } else {
