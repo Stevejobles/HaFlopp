@@ -6,7 +6,6 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { MongoClient, ObjectId } = require('mongodb');
 const http = require('http');
-const sgMail = require('@sendgrid/mail');
 
 // Import our models
 const lobbyModel = require('./models/lobby');
