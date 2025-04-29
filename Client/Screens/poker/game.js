@@ -334,6 +334,41 @@ class PokerGame {
         this.log('Player action received:', data);
         this.updatePlayerAction(data);
         this.requestGameStateUpdate();
+      },  // <-- Add this comma
+  
+      onGameResult: (data) => {
+        this.log('Game result received:', data);
+        const { winnerId, winnerName, amount, reason } = data;
+        
+        // Add to the user interface
+        this.addSystemMessage(`${winnerName} wins $${amount} - ${reason}`);
+        
+        // Highlight the winner
+        const winnerElement = document.querySelector(`.user[data-user-id="${winnerId}"]`);
+        if (winnerElement) {
+          winnerElement.classList.add('winner');
+          
+          // Remove highlight after a delay
+          setTimeout(() => {
+            winnerElement.classList.remove('winner');
+          }, 4000);
+        }
+      },
+      
+      onHandStarting: (data) => {
+        this.log('New hand starting:', data);
+        this.addSystemMessage('New hand starting in 2 seconds...');
+        
+        // Update UI to indicate new hand is coming
+        this.gameStatusElement.textContent = 'New hand starting...';
+        
+        // Disable all action buttons while hand is restarting
+        this.updateActionButtons([]);
+      },
+      
+      onPlayerRebuy: (data) => {
+        this.log('Player rebuy:', data);
+        this.addSystemMessage(`${data.username} has rebought for $${data.amount}`);
       }
     });
   }

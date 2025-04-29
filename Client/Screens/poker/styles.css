@@ -838,3 +838,37 @@ body {
 .user.leaving {
   animation: playerLeave 0.5s ease-in forwards;
 }
+
+.user.winner {
+  animation: winner-highlight 4s ease;
+}
+
+@keyframes winner-highlight {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+  }
+  20%, 80% {
+    box-shadow: 0 0 25px 5px rgba(255, 215, 0, 0.7);
+  }
+}
+
+.winner-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: gold;
+  padding: 15px 25px;
+  border-radius: 10px;
+  font-size: 24px;
+  font-weight: bold;
+  z-index: 100;
+  text-align: center;
+  animation: fade-in-out 4s ease;
+}
+
+@keyframes fade-in-out {
+  0%, 100% { opacity: 0; }
+  20%, 80% { opacity: 1; }
+}

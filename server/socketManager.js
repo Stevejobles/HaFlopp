@@ -398,14 +398,41 @@ class SocketManager {
 
       console.log(`Found lobby with ${lobby.players.length} players`);
 
+      // Get each player's chip count from the users collection
+      const usersCollection = this.db.collection("users");
+      const playerData = [];
+
+      for (const lobbyPlayer of lobby.players) {
+        const user = await usersCollection.findOne({ _id: new ObjectId(lobbyPlayer.id) });
+
+        // Use the user's actual chip count, or give a default if none or too low
+        let chips = 1000; // Default starting chips
+
+        if (user && user.chips && user.chips > 0) {
+          chips = user.chips;
+        } else {
+          // Update the user with default chips if they don't have any
+          await usersCollection.updateOne(
+            { _id: new ObjectId(lobbyPlayer.id) },
+            { $set: { chips: chips } }
+          );
+        }
+
+        playerData.push({
+          id: lobbyPlayer.id.toString(),
+          username: lobbyPlayer.username,
+          chips: chips
+        });
+      }
+
       // Initialize a basic game state
       const gameState = {
         lobbyId: lobbyId,
-        players: lobby.players.map(player => ({
-          id: player.id.toString(),
+        players: playerData.map(player => ({
+          id: player.id,
           username: player.username,
-          chips: 1000, // Starting chips
-          hand: this.dealCards(2), // Deal 2 cards to each player
+          chips: player.chips,
+          hand: [], // Cards will be dealt when blinds are set
           bet: 0,
           totalBet: 0,
           folded: false,
@@ -418,7 +445,7 @@ class SocketManager {
         tableCards: [],
         pot: 0,
         currentBet: 0,
-        currentRound: 'pre-flop', // pre-flop, flop, turn, river, showdown
+        currentRound: 'pre-flop',
         currentTurn: 0,
         dealer: 0,
         smallBlind: 0,
@@ -427,8 +454,17 @@ class SocketManager {
         bigBlindAmount: 10,
         deck: this.createShuffledDeck(),
         isGameOver: false,
-        winner: null
+        winner: null,
+        playersActedThisRound: new Set()
       };
+
+      // Create the deck and deal cards
+      gameState.deck = this.createShuffledDeck();
+
+      // Deal two cards to each player
+      gameState.players.forEach(player => {
+        player.hand = [gameState.deck.pop(), gameState.deck.pop()];
+      });
 
       // Setup dealer and blinds
       this.setupBlinds(gameState);
@@ -460,13 +496,98 @@ class SocketManager {
         // Continue even if database update fails
       }
 
-      return true;
+      return gameState;
     } catch (error) {
       console.error(`Start game error: ${error.message}`);
       return false;
     }
   }
-  
+
+  // Add a method to start a new hand
+  startNewHand(gameState) {
+    // Notify players that a new hand is starting
+    this.io.to(gameState.lobbyId).emit('handStarting', {
+      message: 'New hand starting...',
+      startTime: Date.now() + 2000 // 2 second countdown
+    });
+
+    // Reset the game state for a new hand
+    gameState.tableCards = [];
+    gameState.pot = 0;
+    gameState.currentBet = 0;
+    gameState.currentRound = 'pre-flop';
+    gameState.isGameOver = false;
+    gameState.winner = null;
+
+    // Reset player states but keep chips!
+    gameState.players.forEach(player => {
+      player.hand = [];
+      player.bet = 0;
+      player.totalBet = 0;
+      player.folded = false;
+      player.isAllIn = false;
+      player.isDealer = false;
+      player.isSmallBlind = false;
+      player.isBigBlind = false;
+      player.isCurrentTurn = false;
+    });
+
+    // Move the dealer button
+    gameState.dealer = (gameState.dealer + 1) % gameState.players.length;
+
+    // Check if any players are out of chips
+    const bustedPlayers = gameState.players.filter(player => player.chips <= 0);
+    if (bustedPlayers.length > 0) {
+      // Reload players with minimum buy-in if they bust
+      bustedPlayers.forEach(player => {
+        player.chips = 500; // Minimum buy-in
+
+        // Announce rebuy
+        this.io.to(gameState.lobbyId).emit('playerRebuy', {
+          playerId: player.id,
+          username: player.username,
+          amount: 500
+        });
+      });
+    }
+
+    // Create a fresh deck
+    gameState.deck = this.createShuffledDeck();
+
+    // Deal cards to players
+    gameState.players.forEach(player => {
+      player.hand = [gameState.deck.pop(), gameState.deck.pop()];
+    });
+
+    // Set up blinds for the new hand
+    this.setupBlinds(gameState);
+
+    // Broadcast the updated game state
+    this.broadcastGameState(gameState.lobbyId);
+  }
+
+  // Add a method to update player chips in the database
+  async updatePlayerChips(gameState) {
+    try {
+      // Only update if database is connected
+      if (!this.db) return;
+
+      const usersCollection = this.db.collection("users");
+
+      // Update each player's chips in the database
+      for (const player of gameState.players) {
+        await usersCollection.updateOne(
+          { _id: new ObjectId(player.id) },
+          { $set: { chips: player.chips } }
+        );
+
+        console.log(`Updated chips for player ${player.username} to ${player.chips}`);
+      }
+    } catch (error) {
+      console.error('Error updating player chips in database:', error);
+    }
+  }
+
   // Process a game action
   processGameAction(gameState, userId, action, amount) {
     // Find player
@@ -841,22 +962,47 @@ class SocketManager {
     if (activePlayers.length === 1) {
       // Only one player left, they win
       gameState.winner = activePlayers[0].id;
-      activePlayers[0].chips += gameState.pot;
+      const winAmount = gameState.pot;
+      activePlayers[0].chips += winAmount;
       gameState.pot = 0;
+      
+      // Announce the winner
+      this.io.to(gameState.lobbyId).emit('gameResult', {
+        winnerId: gameState.winner,
+        winnerName: activePlayers[0].username,
+        amount: winAmount,
+        reason: 'Last player standing'
+      });
     } else {
       // For simplicity, pick a random winner for now
       // In a real implementation, evaluate hands using pokerSolver.js
       const winnerIndex = Math.floor(Math.random() * activePlayers.length);
       gameState.winner = activePlayers[winnerIndex].id;
-      activePlayers[winnerIndex].chips += gameState.pot;
+      const winAmount = gameState.pot;
+      activePlayers[winnerIndex].chips += winAmount;
       gameState.pot = 0;
+      
+      // Announce the winner
+      this.io.to(gameState.lobbyId).emit('gameResult', {
+        winnerId: gameState.winner,
+        winnerName: activePlayers[winnerIndex].username,
+        amount: winAmount,
+        reason: 'Best hand at showdown'
+      });
     }
     
     gameState.isGameOver = true;
     
-    // In a real implementation, you would want to schedule the next hand
-    // after a delay by creating a new deck, resetting player states, etc.
+    // Schedule the next hand after a delay
+    setTimeout(() => {
+      // Update player chip counts in the database
+      this.updatePlayerChips(gameState);
+      
+      // Start a new hand
+      this.startNewHand(gameState);
+    }, 5000); // 5 second delay
   }
+  
   
   endHand(gameState) {
     // Find the last active player
@@ -864,13 +1010,117 @@ class SocketManager {
     
     if (winner) {
       gameState.winner = winner.id;
-      winner.chips += gameState.pot;
+      const winAmount = gameState.pot;
+      winner.chips += winAmount;
       gameState.pot = 0;
+      
+      // Announce the winner
+      this.io.to(gameState.lobbyId).emit('gameResult', {
+        winnerId: gameState.winner,
+        winnerName: winner.username,
+        amount: winAmount,
+        reason: 'All other players folded'
+      });
     }
     
     gameState.isGameOver = true;
     gameState.currentRound = 'showdown';
+    
+    // Schedule the next hand after a delay
+    setTimeout(() => {
+      // Update player chip counts in the database
+      this.updatePlayerChips(gameState);
+      
+      // Start a new hand
+      this.startNewHand(gameState);
+    }, 5000); // 5 second delay
   }
+
+  startNewHand(gameState) {
+    // Notify players that a new hand is starting
+    this.io.to(gameState.lobbyId).emit('handStarting', {
+      message: 'New hand starting...',
+      startTime: Date.now() + 2000 // 2 second countdown
+    });
+    
+    // Reset the game state for a new hand
+    gameState.tableCards = [];
+    gameState.pot = 0;
+    gameState.currentBet = 0;
+    gameState.currentRound = 'pre-flop';
+    gameState.isGameOver = false;
+    gameState.winner = null;
+    
+    // Reset player states but keep chips!
+    gameState.players.forEach(player => {
+      player.hand = [];
+      player.bet = 0;
+      player.totalBet = 0;
+      player.folded = false;
+      player.isAllIn = false;
+      player.isDealer = false;
+      player.isSmallBlind = false;
+      player.isBigBlind = false;
+      player.isCurrentTurn = false;
+    });
+    
+    // Move the dealer button
+    gameState.dealer = (gameState.dealer + 1) % gameState.players.length;
+    
+    // Check if any players are out of chips
+    const bustedPlayers = gameState.players.filter(player => player.chips <= 0);
+    if (bustedPlayers.length > 0) {
+      // Reload players with minimum buy-in if they bust
+      bustedPlayers.forEach(player => {
+        player.chips = 500; // Minimum buy-in
+        
+        // Announce rebuy
+        this.io.to(gameState.lobbyId).emit('playerRebuy', {
+          playerId: player.id,
+          username: player.username,
+          amount: 500
+        });
+      });
+    }
+    
+    // Create a fresh deck
+    gameState.deck = this.createShuffledDeck();
+    
+    // Deal cards to players
+    gameState.players.forEach(player => {
+      player.hand = [gameState.deck.pop(), gameState.deck.pop()];
+    });
+    
+    // Set up blinds for the new hand
+    this.setupBlinds(gameState);
+    
+    // Broadcast the updated game state
+    this.broadcastGameState(gameState.lobbyId);
+  }
+
+  async updatePlayerChips(gameState) {
+    try {
+      // Only update if database is connected
+      if (!this.db) return;
+      
+      const usersCollection = this.db.collection("users");
+      
+      // Update each player's chips in the database
+      for (const player of gameState.players) {
+        await usersCollection.updateOne(
+          { _id: new ObjectId(player.id) },
+          { $set: { chips: player.chips } }
+        );
+        
+        console.log(`Updated chips for player ${player.username} to ${player.chips}`);
+      }
+    } catch (error) {
+      console.error('Error updating player chips in database:', error);
+    }
+  }
+
+
+  
 
   // Create a shuffled deck
   createShuffledDeck() {
