@@ -1,5 +1,4 @@
-// Main Poker Game Logic - Fixed Version
-
+// Main Poker Game Logic - Debugging Version
 class PokerGame {
   constructor() {
     console.log('[PokerGame] Initializing...');
@@ -33,11 +32,11 @@ class PokerGame {
 
     // DOM elements
     this.potElement = document.querySelector('.pot-number');
+    this.usersContainer = document.querySelector('.users');
     this.otherUsersContainer = document.querySelector('.other-users');
     this.backButton = document.querySelector('.back');
     this.tableCardsContainer = document.querySelector('.table-cards');
     this.gameStatusElement = document.querySelector('.game-status');
-    this.tableCardElements = document.querySelectorAll('.table-card');
 
     // Chat elements
     this.chatMessagesContainer = document.getElementById('chat-messages');
@@ -79,13 +78,6 @@ class PokerGame {
 
     // Initialize the game
     this.init();
-    
-    // Set up a game state refresh timer
-    this.gameStateTimer = setInterval(() => {
-      if (this.socket && this.socket.isSocketConnected()) {
-        this.socket.requestGameState();
-      }
-    }, 10000); // Request game state every 10 seconds as a fallback
   }
   
   log(...args) {
@@ -102,6 +94,7 @@ class PokerGame {
   verifyDOMElements() {
     const elements = [
       { name: 'potElement', el: this.potElement },
+      { name: 'usersContainer', el: this.usersContainer },
       { name: 'otherUsersContainer', el: this.otherUsersContainer },
       { name: 'backButton', el: this.backButton },
       { name: 'tableCardsContainer', el: this.tableCardsContainer },
@@ -162,6 +155,9 @@ class PokerGame {
         this.handleAction('raise', amount);
       });
 
+      // PROBLEM: This section has no access to 'socket'
+      // REMOVED: socket.on('requestGameState', (data) => { ... });
+
       // Bet amount controls
       this.betIncreaseBtn.addEventListener('click', () => this.adjustBetAmount(10));
       this.betDecreaseBtn.addEventListener('click', () => this.adjustBetAmount(-10));
@@ -219,9 +215,7 @@ class PokerGame {
       setTimeout(() => {
         if (!this.socket.isSocketConnected()) {
           this.log('Socket not connected after timeout, attempting to reconnect');
-          if (typeof this.socket.reconnect === 'function') {
-            this.socket.reconnect();
-          }
+          this.socket.reconnect();
           this.socket.joinGame(this.lobbyId);
         }
       }, 3000);
@@ -234,28 +228,6 @@ class PokerGame {
     }
   }
 
-  // Method to check connection status (for debug button)
-  checkConnection() {
-    const connected = this.socket && this.socket.isSocketConnected();
-    this.log('Connection check:', connected ? 'Connected' : 'Disconnected');
-    this.addSystemMessage(`Connection status: ${connected ? 'Connected' : 'Disconnected'}`);
-    
-    if (!connected && this.socket) {
-      this.log('Attempting to reconnect...');
-      this.addSystemMessage('Attempting to reconnect...');
-      if (typeof this.socket.reconnect === 'function') {
-        this.socket.reconnect();
-      }
-      setTimeout(() => {
-        this.socket.joinGame(this.lobbyId);
-      }, 1000);
-    } else if (connected) {
-      this.log('Requesting game state...');
-      this.addSystemMessage('Requesting fresh game state...');
-      this.socket.requestGameState();
-    }
-  }
-
   requestGameStateUpdate() {
     if (this.socket && this.socket.isSocketConnected()) {
       this.socket.requestGameState();
@@ -265,9 +237,7 @@ class PokerGame {
       
       // Try to reconnect if socket is disconnected
       if (this.socket) {
-        if (typeof this.socket.reconnect === 'function') {
-          this.socket.reconnect();
-        }
+        this.socket.reconnect();
       }
     }
   }
@@ -333,11 +303,6 @@ class PokerGame {
       
       onChatHistory: (data) => {
         this.log('Chat history received:', data);
-        if (data.history && Array.isArray(data.history)) {
-          data.history.forEach(message => {
-            this.receiveChatMessage(message);
-          });
-        }
       },
 
       onPlayerAction: (data) => {
@@ -370,7 +335,12 @@ class PokerGame {
     this.updateTableCards(gameState.tableCards || []);
 
     // Clear previous player elements
-    this.clearPlayerPositions();
+    if (this.usersContainer) {
+      this.usersContainer.innerHTML = '';
+    }
+    if (this.otherUsersContainer) {
+      this.otherUsersContainer.innerHTML = '';
+    }
 
     // Update players
     this.renderPlayers(gameState.players || []);
@@ -386,72 +356,22 @@ class PokerGame {
     }
   }
 
-  // Clear all player positions
-  clearPlayerPositions() {
-    const positions = document.querySelectorAll('.player-position');
-    positions.forEach(position => {
-      position.innerHTML = '';
-    });
-  }
-
   // Update table cards display
   updateTableCards(tableCards) {
     this.log('Updating table cards:', tableCards);
+    const cardElements = this.tableCardsContainer.querySelectorAll('.table-card');
     
-    // Update each card element
-    for (let i = 0; i < this.tableCardElements.length; i++) {
-      const cardElement = this.tableCardElements[i];
-      
-      if (i < tableCards.length) {
-        // Card should be visible
-        cardElement.classList.remove('hidden');
-        
-        // Format the card
-        const card = this.formatCard(tableCards[i]);
-        
-        // Update card attributes and content
-        cardElement.setAttribute('data-value', card.value);
-        cardElement.setAttribute('data-suit', card.suit);
-        
-        // Create card display
-        cardElement.innerHTML = `
-          <div class="card-value" style="color: ${card.color || 'black'}">${card.value}</div>
-          <div class="card-suit" style="color: ${card.color || 'black'}">${card.suit}</div>
-        `;
-        
-        // Add custom styles for card elements if they don't exist
-        if (!document.getElementById('card-styles')) {
-          const styleEl = document.createElement('style');
-          styleEl.id = 'card-styles';
-          styleEl.textContent = `
-            .card-value {
-              position: absolute;
-              top: 5px;
-              left: 5px;
-              font-size: 18px;
-              font-weight: bold;
-            }
-            .card-suit {
-              position: absolute;
-              top: 25px;
-              left: 5px;
-              font-size: 22px;
-            }
-            .table-card {
-              position: relative;
-            }
-          `;
-          document.head.appendChild(styleEl);
-        }
-        
-        this.log(`Set card ${i} to ${card.display}`);
-      } else {
-        // Card should be hidden
-        cardElement.classList.add('hidden');
-        cardElement.setAttribute('data-value', '?');
-        cardElement.setAttribute('data-suit', '?');
-        cardElement.innerHTML = '';
-      }
+    // First set all cards to hidden
+    cardElements.forEach(card => {
+      card.classList.add('hidden');
+      card.textContent = '?';
+    });
+    
+    // Then update visible cards
+    for (let i = 0; i < tableCards.length && i < cardElements.length; i++) {
+      cardElements[i].classList.remove('hidden');
+      cardElements[i].textContent = this.formatCard(tableCards[i]).display;
+      this.log(`Set card ${i} to ${this.formatCard(tableCards[i]).display}`);
     }
   }
 
@@ -473,41 +393,25 @@ class PokerGame {
     this.log('Current player:', currentPlayer);
     this.log('Other players:', otherPlayers.length);
     
-    // Render current user directly in the table
+    // Render current user
     if (currentPlayer) {
       this.renderCurrentPlayer(currentPlayer);
     } else {
       this.log('Warning: Current player not found in player list');
     }
     
-    // Render other players in fixed positions
+    // Render other players
     this.renderOtherPlayers(otherPlayers);
   }
 
   // Render current player
   renderCurrentPlayer(player) {
     this.log('Rendering current player:', player);
-    
-    // Create a special position element for current player if it doesn't exist
-    let positionElement = document.getElementById('current-player-position');
-    if (!positionElement) {
-      positionElement = document.createElement('div');
-      positionElement.id = 'current-player-position';
-      positionElement.className = 'current-player-position';
-      positionElement.style.position = 'absolute';
-      positionElement.style.bottom = '10px';
-      positionElement.style.left = '50%';
-      positionElement.style.transform = 'translateX(-50%)';
-      positionElement.style.zIndex = '10';
-      
-      // Add it to the table element
-      document.querySelector('.table').appendChild(positionElement);
+    if (!this.usersContainer) {
+      this.log('Error: users container not found');
+      return;
     }
 
-    // Clear previous content
-    positionElement.innerHTML = '';
-
-    // Create player element
     const userElement = document.createElement('div');
     userElement.className = 'user me';
     userElement.dataset.userId = player.id;
@@ -548,6 +452,174 @@ class PokerGame {
         </div>
       `;
     }
+
+    function renderCard(card, faceUp) {
+      // Replace question mark fallback with proper loading state
+      if (!card) {
+        return '<div class="card back"></div>'; // Show card back instead of "?"
+      }
+      
+      // Make sure we're checking if the card should be face up
+      const isFaceUp = faceUp !== undefined ? faceUp : card.faceUp;
+      
+      // If card is not face up, show the back
+      if (!isFaceUp) {
+        return '<div class="card back"></div>';
+      }
+      
+      // Make sure we have the correct properties before accessing them
+      const suit = card.suit || '';
+      const value = card.value || '';
+      
+      // Use proper card rendering with appropriate classes
+      return `<div class="card ${suit} ${value}"></div>`;
+    }
+
+    function updateCardDisplay(cardElement, card, faceUp) {
+      // Clear previous content
+      cardElement.innerHTML = '';
+      
+      // If no card data, show empty slot rather than "?"
+      if (!card) {
+        cardElement.classList.add('empty-slot');
+        return;
+      }
+      
+      // Remove empty slot class if it was previously applied
+      cardElement.classList.remove('empty-slot');
+      
+      // Determine if card should be face up
+      const showFaceUp = faceUp !== undefined ? faceUp : card.faceUp;
+      
+      // Update the card element with proper classes
+      if (showFaceUp) {
+        cardElement.className = `card ${card.suit} ${card.value}`;
+        
+        // Add specific card content if needed
+        // For example: rank and suit symbols in the corners
+        const rankSymbol = getRankSymbol(card.value);
+        const suitSymbol = getSuitSymbol(card.suit);
+        
+        // Add the content directly rather than using "?" as fallback
+        cardElement.innerHTML = `
+          <div class="corner top-left">
+            <div class="rank">${rankSymbol}</div>
+            <div class="suit">${suitSymbol}</div>
+          </div>
+          <div class="corner bottom-right">
+            <div class="rank">${rankSymbol}</div>
+            <div class="suit">${suitSymbol}</div>
+          </div>
+        `;
+      } else {
+        // Show card back
+        cardElement.className = 'card back';
+        cardElement.innerHTML = '';
+      }
+    }
+    
+    // Helper functions for card symbols (if needed)
+    function getRankSymbol(value) {
+      // Convert numeric values to appropriate symbols (A, K, Q, J, etc.)
+      const symbols = {
+        '1': 'A',
+        '11': 'J',
+        '12': 'Q',
+        '13': 'K'
+      };
+      
+      return symbols[value] || value;
+    }
+    
+    function getSuitSymbol(suit) {
+      // Convert suit names to symbols
+      const symbols = {
+        'hearts': '♥',
+        'diamonds': '♦',
+        'clubs': '♣',
+        'spades': '♠'
+      };
+      
+      return symbols[suit] || suit;
+    }
+
+    function updatePlayerHand(player, cards) {
+      // Get the DOM element for the player's hand
+      const handElement = document.getElementById(`player-${player}-hand`);
+      
+      // Clear existing cards
+      handElement.innerHTML = '';
+      
+      // Exit early if no cards (show empty hand instead of "?")
+      if (!cards || !cards.length) {
+        return;
+      }
+      
+      // Create fixed positions for cards (NOT dynamic)
+      const positions = getFixedCardPositions(player, cards.length);
+      
+      // Render each card with its fixed position
+      cards.forEach((card, index) => {
+        // Create card element
+        const cardElement = document.createElement('div');
+        
+        // Set fixed position using the pre-calculated positions
+        cardElement.style.left = `${positions[index].x}px`;
+        cardElement.style.top = `${positions[index].y}px`;
+        
+        // Add proper card rendering
+        cardElement.innerHTML = renderCard(card, card.faceUp);
+        
+        // Add to hand
+        handElement.appendChild(cardElement);
+      });
+    }
+    
+    // Function to get FIXED positions for cards
+    function getFixedCardPositions(player, cardCount) {
+      // Pre-defined positions for different numbers of cards
+      const fixedPositions = {
+        // For player 1 (assuming bottom of screen)
+        '1': {
+          '1': [{x: 400, y: 300}],
+          '2': [{x: 380, y: 300}, {x: 420, y: 300}],
+          '3': [{x: 360, y: 300}, {x: 400, y: 300}, {x: 440, y: 300}],
+          // Add more predefined positions as needed
+        },
+        // For player 2 (assuming left side)
+        '2': {
+          '1': [{x: 200, y: 200}],
+          '2': [{x: 200, y: 180}, {x: 200, y: 220}],
+          // Add more predefined positions as needed
+        },
+        // Add more players as needed
+      };
+      
+      // Return the fixed positions for this player and card count
+      return fixedPositions[player][cardCount] || 
+        // Fallback to a default fixed layout if specific configuration not found
+        Array(cardCount).fill().map((_, i) => ({
+          x: 350 + (i * 30),
+          y: player === '1' ? 300 : 200
+        }));
+    }
+
+    function initializeGame() {
+      // Initialize the deck first
+      const deck = createDeck();
+      
+      // Make sure the deck is fully created and shuffled before dealing
+      if (!deck || deck.length === 0) {
+        console.error('Deck initialization failed');
+        return;
+      }
+      
+      // Deal to players only after deck is ready
+      const players = dealCards(deck);
+      
+      // Only update UI after all data is ready
+      updateGameUI(players);
+    }
     
     // Generate action display
     let actionDisplay = '';
@@ -569,23 +641,25 @@ class PokerGame {
       </div>
     `;
     
-    positionElement.appendChild(userElement);
+    this.usersContainer.appendChild(userElement);
   }
 
   // Render other players
   renderOtherPlayers(otherPlayers) {
     this.log('Rendering', otherPlayers.length, 'other players');
   
-    // Map players to fixed positions
+    // Clear any existing players from positions
+    document.querySelectorAll('.player-position').forEach(position => {
+      position.innerHTML = '';
+    });
+  
+    // Place players in fixed positions
     otherPlayers.forEach((player, index) => {
       // Only display up to 5 players
       if (index >= 5) return;
       
       const positionElement = document.getElementById(`position-${index}`);
-      if (!positionElement) {
-        this.log(`Position element position-${index} not found`);
-        return;
-      }
+      if (!positionElement) return;
   
       const playerElement = document.createElement('div');
       playerElement.className = 'user';
@@ -633,8 +707,10 @@ class PokerGame {
     this.log('Handling player join:', data);
     this.addSystemMessage(`${data.username || 'A player'} has joined the table.`);
     
-    // Request new game state to make sure we have updated player list
-    this.requestGameStateUpdate();
+    // Refresh game state
+    if (this.socket && this.socket.isSocketConnected()) {
+      this.socket.joinGame(this.lobbyId);
+    }
   }
 
   // Handle player leaving
@@ -654,9 +730,6 @@ class PokerGame {
         }
       }, 500);
     }
-    
-    // Request new game state to make sure we have updated player list
-    this.requestGameStateUpdate();
   }
 
   // Update game status display
@@ -712,6 +785,8 @@ class PokerGame {
     this.gameStatusElement.textContent = statusText;
   }
   
+  
+
   // Update action buttons based on available actions
   updateActionButtons(availableActions) {
     this.log('Updating action buttons with available actions:', availableActions);
@@ -829,6 +904,10 @@ class PokerGame {
     }
   }
   
+  
+  
+  
+  
   // Update player action display
   updatePlayerAction(data) {
     const { userId, action, amount } = data;
@@ -848,15 +927,15 @@ class PokerGame {
         actionType = 'checked';
         break;
       case 'call':
-        actionText = `Called ${amount || this.gameState?.currentBet || ''}`;
+        actionText = `Called $${amount || ''}`;
         actionType = 'bet';
         break;
       case 'bet':
-        actionText = `Bet ${amount || ''}`;
+        actionText = `Bet $${amount || ''}`;
         actionType = 'bet';
         break;
       case 'raise':
-        actionText = `Raised to ${amount || ''}`;
+        actionText = `Raised to $${amount || ''}`;
         actionType = 'raised';
         break;
       case 'all-in':
@@ -867,5 +946,268 @@ class PokerGame {
         this.log('Unknown action type:', action);
         return;
     }
+    
+    // Store action
+    this.playerActions[userId] = {
+      type: actionType,
+      text: actionText
+    };
+    
+    // Update player elements
+    this.updatePlayerActionElements(userId, actionType, actionText);
+    
+    // Add to chat
+    const playerName = userId === this.currentUser.id ? 'You' :
+      this.gameState?.players.find(p => p.id === userId)?.username || 'Player';
+    this.addSystemMessage(`${playerName} ${actionText.toLowerCase()}`);
+  }
+  
+  // Update player action elements in the DOM
+  updatePlayerActionElements(userId, actionType, actionText) {
+    this.log('Updating player action elements for:', userId, actionType, actionText);
+    
+    // Find player element
+    const playerElement = document.querySelector(`.user[data-user-id="${userId}"]`);
+    if (!playerElement) {
+      this.log('Player element not found for user ID:', userId);
+      return;
+    }
+    
+    // Find or create action element
+    let actionElement = playerElement.querySelector('.player-action');
+    if (!actionElement) {
+      this.log('Creating new action element for player');
+      actionElement = document.createElement('div');
+      actionElement.className = 'player-action';
+      const userContent = playerElement.querySelector('.user-content');
+      if (userContent) {
+        userContent.appendChild(actionElement);
+      } else {
+        this.log('User content element not found');
+        return;
+      }
+    }
+    
+    // Update action element
+    actionElement.textContent = actionText;
+    actionElement.className = `player-action ${actionType}`;
+    
+    // Remove hidden class
+    actionElement.classList.remove('hidden');
+    
+    // Clear action after a delay (except for fold)
+    if (actionType !== 'folded') {
+      setTimeout(() => {
+        if (actionElement && !actionElement.closest('body')) {
+          this.log('Action element no longer in DOM, skipping hide');
+          return; // Element no longer in DOM
+        }
+        this.log('Hiding action element after timeout');
+        actionElement.classList.add('hidden');
+      }, 3000);
+    }
+  }
+  
+  // Format card for display (e.g. "Ah" -> "A♥")
+  formatCard(cardCode) {
+    if (!cardCode) return { display: '?', value: '?', suit: '?' };
+    
+    this.log('Formatting card:', cardCode);
+    
+    const value = cardCode.slice(0, 1);
+    const suit = cardCode.slice(1, 2);
+    
+    // Convert suit to symbol
+    let suitSymbol = suit;
+    switch (suit) {
+      case 'h':
+        suitSymbol = '♥';
+        break;
+      case 'd':
+        suitSymbol = '♦';
+        break;
+      case 'c':
+        suitSymbol = '♣';
+        break;
+      case 's':
+        suitSymbol = '♠';
+        break;
+    }
+    
+    // Convert value for special cards
+    let displayValue = value;
+    if (value === 'T') displayValue = '10';
+    
+    return {
+      display: displayValue + suitSymbol,
+      value: displayValue,
+      suit: suitSymbol
+    };
+  }
+  
+  // Send a chat message
+  sendChatMessage() {
+    const message = this.chatInput.value.trim();
+    if (!message) return;
+  
+    this.log('Sending chat message:', message);
+  
+    // Clear input
+    this.chatInput.value = '';
+  
+    // Make sure we have the correct lobby ID
+    if (!this.lobbyId) {
+      console.error('No lobby ID available for chat message');
+      this.addSystemMessage('Error: Cannot send message - no game ID');
+      return;
+    }
+  
+    // Create message data
+    const messageData = {
+      userId: this.currentUser.id,
+      username: this.currentUser.username || 'You',
+      message,
+      timestamp: new Date().toISOString(),
+      isSelf: true
+    };
+  
+    // Send message to server
+    if (this.socket && this.socket.isSocketConnected()) {
+      // Explicitly include the lobby ID in the message data
+      this.socket.emit('chatMessage', {
+        lobbyId: this.lobbyId,
+        message: message
+      });
+  
+      // Add message to chat locally immediately
+      this.addChatMessage(messageData);
+      
+      // Force scroll to bottom
+      this.scrollChatToBottom();
+    } else {
+      console.error("Socket not connected, can't send chat message");
+      this.addSystemMessage("Message not sent - connection issues");
+      
+      // Try to reconnect socket
+      if (this.socket) {
+        this.socket.reconnect();
+      }
+    }
+  }
+
+  // Receive a chat message from the server
+  receiveChatMessage(data) {
+    this.log('Received chat message:', data);
+
+    // Skip own messages (we already added them locally) - FIXED to check properly
+    if (data.userId === this.currentUser.id && data.timeStamp !== (this.lastMessageSent?.timeStamp)) {
+      this.log('Skipping own message');
+      return;
+    }
+
+    // Add message to chat
+    this.addChatMessage({
+      ...data,
+      isSelf: data.userId === this.currentUser.id
+    });
+  }
+  
+  // Add a chat message to the display
+  addChatMessage(data) {
+    this.log('Adding chat message to display:', data);
+    const { userId, username, message, timestamp, isSelf } = data;
+    
+    // Create message element
+    const messageElement = document.createElement('div');
+    messageElement.className = `chat-message ${isSelf ? 'my-message' : 'other-message'}`;
+    
+    // Format timestamp
+    let time;
+    try {
+      time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    // Set content with better visibility
+    messageElement.innerHTML = `
+      <div class="message-sender">${username}</div>
+      <div class="message-content">${this.escapeHTML(message)}</div>
+      <div class="message-time">${time}</div>
+    `;
+    
+    // Add to container
+    this.chatMessagesContainer.appendChild(messageElement);
+    
+    // Force scroll to bottom
+    this.scrollChatToBottom();
+  }
+  
+  // Add a system message to the chat
+  addSystemMessage(message) {
+    this.log('Adding system message:', message);
+    const messageElement = document.createElement('div');
+    messageElement.className = 'system-message';
+    messageElement.textContent = message;
+    
+    this.chatMessagesContainer.appendChild(messageElement);
+    this.scrollChatToBottom();
+  }
+  
+  // Scroll chat container to the bottom
+  scrollChatToBottom() {
+    this.chatMessagesContainer.scrollTop = this.chatMessagesContainer.scrollHeight;
+  }
+  
+  // Escape HTML to prevent XSS in chat
+  escapeHTML(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  
+  // Handle back button click
+  handleBackButton() {
+    this.log('Back button clicked');
+    if (confirm('Are you sure you want to leave the game? This will remove you from the table.')) {
+      // Disconnect socket
+      this.socket.disconnect();
+      clearInterval(this.gameStateTimer);
+      window.location.href = '../index.html';
+    }
   }
 }
+
+
+
+// Initialize the game when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM loaded, initializing game');
+  // Create game instance
+  window.pokerGame = new PokerGame();
+  
+  // Add debug button for testing
+  const debugBtn = document.createElement('button');
+  debugBtn.textContent = '🐞 Debug Connection';
+  debugBtn.style.position = 'fixed';
+  debugBtn.style.bottom = '10px';
+  debugBtn.style.left = '140px';
+  debugBtn.style.zIndex = '9999';
+  debugBtn.style.padding = '8px 12px';
+  debugBtn.style.background = 'rgba(255,0,0,0.3)';
+  debugBtn.style.border = 'none';
+  debugBtn.style.borderRadius = '5px';
+  debugBtn.style.color = 'white';
+  debugBtn.style.cursor = 'pointer';
+  
+  debugBtn.addEventListener('click', () => {
+    if (window.pokerGame) {
+      window.pokerGame.checkConnection();
+    } else {
+      console.error('Game instance not found');
+      alert('Game instance not initialized. Try refreshing the page.');
+    }
+  });
+  
+  document.body.appendChild(debugBtn);
+});
