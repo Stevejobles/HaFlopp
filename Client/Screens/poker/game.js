@@ -276,65 +276,64 @@ class PokerGame {
         this.log('Socket connected');
         this.gameStatusElement.textContent = 'Connected to server, joining game...';
         this.addSystemMessage('Connected to game server');
-        
+  
         if (this.lobbyId) {
           this.socket.joinGame(this.lobbyId);
         }
       },
-
+  
       onDisconnect: () => {
         this.log('Socket disconnected');
         this.gameStatusElement.textContent = 'Disconnected from server';
         this.addSystemMessage('Disconnected from server. Please refresh the page.');
       },
-
+  
       onGameState: (data) => {
         this.log('Game state update received:', data);
-        
-        // Mark game as started
         if (!this.isGameStarted) {
           this.isGameStarted = true;
           this.addSystemMessage('Game has started!');
         }
-        
         this.updateGameState(data.gameState, data.playerState);
       },
-
+  
       onError: (error) => {
         console.error('[PokerGame] Socket error:', error);
         this.addSystemMessage(`Error: ${error.message || 'An unknown error occurred'}`);
       },
-
+  
       onGameStarted: (data) => {
         this.log('Game started event received:', data);
         this.isGameStarted = true;
         this.gameStatusElement.textContent = 'Game starting...';
         this.addSystemMessage('Game has started!');
       },
-
+  
       onPlayerJoin: (data) => {
         this.log('Player joined:', data);
         this.handlePlayerJoin(data);
       },
-
+  
       onPlayerLeave: (data) => {
         this.log('Player left:', data);
         this.handlePlayerLeave(data);
       },
-
+  
       onChatMessage: (data) => {
         this.log('Chat message received:', data);
         this.receiveChatMessage(data);
       },
-      
+  
       onChatHistory: (data) => {
         this.log('Chat history received:', data);
         this.processChatHistory(data);
       },
-
+  
+      // ←— UPDATED: request a fresh state after each action
       onPlayerAction: (data) => {
         this.log('Player action received:', data);
         this.updatePlayerAction(data);
+        this.requestGameStateUpdate();
       }
     });
   }
@@ -741,42 +740,44 @@ class PokerGame {
   // Handle player action
   handleAction(action, amount = 0) {
     this.log('Handling player action:', action, amount);
-    
+  
     // Validate amount for bet/raise
     if ((action === 'bet' || action === 'raise') && (isNaN(amount) || amount <= 0)) {
       alert('Please enter a valid bet amount');
       return;
     }
-    
-    // Disable all buttons during action processing
+  
+    // Disable all buttons to prevent double‐clicks
     this.actionButtons.forEach(btn => {
       btn.disabled = true;
       btn.classList.add('disabled');
     });
     this.betAmountInput.disabled = true;
-    
-    // Update local player action display
+  
+    // Show the action immediately in UI
     this.updatePlayerAction({
       userId: this.currentUser.id,
       action: action,
       amount: amount
     });
-    
+  
     // Send action to server
     if (this.socket && this.socket.isSocketConnected()) {
       this.socket.sendAction(action, amount);
+      // ←— NEW: also pull the latest state in case server doesn't broadcast
+      this.requestGameStateUpdate();
     } else {
       this.log('Cannot send action - socket not connected');
       this.addSystemMessage('Cannot perform action - not connected to server');
-      
-      // Re-enable buttons after short delay
+  
+      // Re-enable buttons after delay
       setTimeout(() => {
         if (this.playerState && this.playerState.availableActions) {
           this.updateActionButtons(this.playerState.availableActions);
         }
       }, 1000);
-      
-      // Try to reconnect
+  
+      // Attempt reconnect
       this.tryReconnect();
     }
   }
