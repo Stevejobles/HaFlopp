@@ -483,14 +483,22 @@ class SocketManager {
     
     const player = gameState.players[playerIndex];
     
-    // Handle different actions (simplified for now)
+    // FIXED: Track which players have acted in this round
+    if (!gameState.playersActedThisRound) {
+      gameState.playersActedThisRound = new Set();
+    }
+    
+    // Add this player to the list of players who have acted
+    gameState.playersActedThisRound.add(playerIndex);
+    
+    // Handle different actions
     switch (action) {
       case 'fold':
         player.folded = true;
         break;
         
       case 'check':
-        // Can only check if no bet
+        // Can only check if no bet or player already matched it
         if (gameState.currentBet > 0 && gameState.currentBet !== player.totalBet) {
           throw new Error('Cannot check, must call or fold');
         }
@@ -531,6 +539,19 @@ class SocketManager {
         gameState.pot += actualBetAmount;
         gameState.currentBet = player.totalBet;
         
+        // FIXED: When a player bets, reset who has acted, except folded/all-in players
+        gameState.playersActedThisRound = new Set();
+        for (let i = 0; i < gameState.players.length; i++) {
+          if (gameState.players[i].folded || gameState.players[i].isAllIn) {
+            gameState.playersActedThisRound.add(i);
+          }
+        }
+        // The betting player has acted
+        gameState.playersActedThisRound.add(playerIndex);
+        
+        // FIXED: Record this position as the last aggressor
+        gameState.lastRaiseIndex = playerIndex;
+        
         if (player.chips === 0) {
           player.isAllIn = true;
         }
@@ -555,6 +576,19 @@ class SocketManager {
         gameState.pot += actualRaiseAmount;
         gameState.currentBet = player.totalBet;
         
+        // FIXED: When a player raises, reset who has acted, except folded/all-in players
+        gameState.playersActedThisRound = new Set();
+        for (let i = 0; i < gameState.players.length; i++) {
+          if (gameState.players[i].folded || gameState.players[i].isAllIn) {
+            gameState.playersActedThisRound.add(i);
+          }
+        }
+        // The raising player has acted
+        gameState.playersActedThisRound.add(playerIndex);
+        
+        // FIXED: Record this position as the last aggressor
+        gameState.lastRaiseIndex = playerIndex;
+        
         if (player.chips === 0) {
           player.isAllIn = true;
         }
@@ -573,6 +607,24 @@ class SocketManager {
     // Reset current turn marker
     gameState.players[gameState.currentTurn].isCurrentTurn = false;
     
+    // Check if only one player is left (not folded)
+    const activePlayers = gameState.players.filter(p => !p.folded);
+    if (activePlayers.length === 1) {
+      // Only one player left, they win
+      this.endHand(gameState);
+      return;
+    }
+    
+    // FIXED: Check if all players have acted and bets are equal
+    const allActed = this.allPlayersHaveActed(gameState);
+    const betsAreEqual = this.allBetsAreEqual(gameState);
+    
+    if (allActed && betsAreEqual) {
+      // End of betting round, move to next round
+      this.nextRound(gameState);
+      return;
+    }
+    
     // Find next active player
     let nextPlayer = (gameState.currentTurn + 1) % gameState.players.length;
     
@@ -583,20 +635,11 @@ class SocketManager {
     ) {
       nextPlayer = (nextPlayer + 1) % gameState.players.length;
       
-      // If we've gone full circle, move to next round
+      // If we've gone full circle and everyone is folded or all-in, move to next round
       if (nextPlayer === gameState.currentTurn) {
         this.nextRound(gameState);
         return;
       }
-    }
-    
-    // Check if round is over (everyone has acted)
-    const allPlayersActed = this.allPlayersHaveActed(gameState);
-    
-    if (allPlayersActed) {
-      // Move to next round
-      this.nextRound(gameState);
-      return;
     }
     
     // Set next player's turn
@@ -606,16 +649,51 @@ class SocketManager {
   
   // Check if all players have acted
   allPlayersHaveActed(gameState) {
+    // If we haven't initialized the set of players who have acted, do so now
+    if (!gameState.playersActedThisRound) {
+      gameState.playersActedThisRound = new Set();
+      
+      // Mark folded and all-in players as having acted
+      for (let i = 0; i < gameState.players.length; i++) {
+        if (gameState.players[i].folded || gameState.players[i].isAllIn) {
+          gameState.playersActedThisRound.add(i);
+        }
+      }
+    }
+    
+    // Count active players (not folded, not all-in)
+    const activePlayerCount = gameState.players.filter(
+      p => !p.folded && !p.isAllIn
+    ).length;
+    
+    // Check if all active players have acted
+    return gameState.playersActedThisRound.size >= gameState.players.length;
+  }
+
+  allBetsAreEqual(gameState) {
+    let lastBet = null;
+    
     for (let i = 0; i < gameState.players.length; i++) {
       const player = gameState.players[i];
       
-      // Skip folded or all-in players
-      if (player.folded || player.isAllIn) {
+      // Skip folded players
+      if (player.folded) {
         continue;
       }
       
-      // If player hasn't matched current bet, they haven't acted
-      if (player.totalBet !== gameState.currentBet) {
+      // All-in players may have lower bets, that's fine
+      if (player.isAllIn) {
+        continue;
+      }
+      
+      // First active player sets the bet to match
+      if (lastBet === null) {
+        lastBet = player.totalBet;
+        continue;
+      }
+      
+      // If any player hasn't matched the bet, bets are not equal
+      if (player.totalBet !== lastBet) {
         return false;
       }
     }
@@ -629,6 +707,19 @@ class SocketManager {
     gameState.players.forEach(player => {
       player.bet = 0;
     });
+    
+    // Reset the current bet
+    gameState.currentBet = 0;
+    
+    // Reset the list of players who have acted
+    gameState.playersActedThisRound = new Set();
+    
+    // Mark folded and all-in players as having acted
+    for (let i = 0; i < gameState.players.length; i++) {
+      if (gameState.players[i].folded || gameState.players[i].isAllIn) {
+        gameState.playersActedThisRound.add(i);
+      }
+    }
     
     // Deal community cards based on current round
     switch (gameState.currentRound) {
@@ -656,45 +747,26 @@ class SocketManager {
         return;
     }
     
-    // Reset the current bet
-    gameState.currentBet = 0;
-    
-    // Start with player after dealer
-    gameState.currentTurn = (gameState.dealer + 1) % gameState.players.length;
+    // FIXED: In a real poker game, action starts with first active player after dealer
+    let startPlayerIndex = (gameState.dealer + 1) % gameState.players.length;
     
     // Skip folded or all-in players
     while (
-      gameState.players[gameState.currentTurn].folded || 
-      gameState.players[gameState.currentTurn].isAllIn
+      gameState.players[startPlayerIndex].folded || 
+      gameState.players[startPlayerIndex].isAllIn
     ) {
-      gameState.currentTurn = (gameState.currentTurn + 1) % gameState.players.length;
+      startPlayerIndex = (startPlayerIndex + 1) % gameState.players.length;
+      
+      // If we've gone full circle and everyone is folded or all-in, go to showdown
+      if (startPlayerIndex === gameState.dealer) {
+        this.showdown(gameState);
+        return;
+      }
     }
     
+    // Set the starting player's turn
+    gameState.currentTurn = startPlayerIndex;
     gameState.players[gameState.currentTurn].isCurrentTurn = true;
-  }
-  
-  // Handle the showdown
-  showdown(gameState) {
-    gameState.currentRound = 'showdown';
-    
-    // Get active players (not folded)
-    const activePlayers = gameState.players.filter(p => !p.folded);
-    
-    if (activePlayers.length === 1) {
-      // Only one player left, they win
-      gameState.winner = activePlayers[0].id;
-      activePlayers[0].chips += gameState.pot;
-      gameState.pot = 0;
-    } else {
-      // For simplicity, pick a random winner for now
-      // In a real implementation, evaluate hands using pokerSolver.js
-      const winnerIndex = Math.floor(Math.random() * activePlayers.length);
-      gameState.winner = activePlayers[winnerIndex].id;
-      activePlayers[winnerIndex].chips += gameState.pot;
-      gameState.pot = 0;
-    }
-    
-    gameState.isGameOver = true;
   }
   
   // Setup dealer and blinds
@@ -712,10 +784,6 @@ class SocketManager {
     // Set big blind
     gameState.bigBlind = (gameState.smallBlind + 1) % activePlayers;
     gameState.players[gameState.bigBlind].isBigBlind = true;
-    
-    // Set the first player to act (after big blind)
-    gameState.currentTurn = (gameState.bigBlind + 1) % activePlayers;
-    gameState.players[gameState.currentTurn].isCurrentTurn = true;
     
     // Place blind bets
     const sbPlayer = gameState.players[gameState.smallBlind];
@@ -745,8 +813,65 @@ class SocketManager {
     
     // Set current bet to big blind amount
     gameState.currentBet = bbAmount;
+    
+    // FIXED: In pre-flop, action starts with UTG (player after big blind)
+    gameState.currentTurn = (gameState.bigBlind + 1) % activePlayers;
+    gameState.players[gameState.currentTurn].isCurrentTurn = true;
+    
+    // Initialize the set of players who have acted
+    gameState.playersActedThisRound = new Set();
+    
+    // Mark folded and all-in players as having acted
+    for (let i = 0; i < gameState.players.length; i++) {
+      if (gameState.players[i].folded || gameState.players[i].isAllIn) {
+        gameState.playersActedThisRound.add(i);
+      }
+    }
+    
+    // FIXED: Save the last raise position (big blind) to ensure proper round completion
+    gameState.lastRaiseIndex = gameState.bigBlind;
+  }
+
+  showdown(gameState) {
+    gameState.currentRound = 'showdown';
+    
+    // Get active players (not folded)
+    const activePlayers = gameState.players.filter(p => !p.folded);
+    
+    if (activePlayers.length === 1) {
+      // Only one player left, they win
+      gameState.winner = activePlayers[0].id;
+      activePlayers[0].chips += gameState.pot;
+      gameState.pot = 0;
+    } else {
+      // For simplicity, pick a random winner for now
+      // In a real implementation, evaluate hands using pokerSolver.js
+      const winnerIndex = Math.floor(Math.random() * activePlayers.length);
+      gameState.winner = activePlayers[winnerIndex].id;
+      activePlayers[winnerIndex].chips += gameState.pot;
+      gameState.pot = 0;
+    }
+    
+    gameState.isGameOver = true;
+    
+    // In a real implementation, you would want to schedule the next hand
+    // after a delay by creating a new deck, resetting player states, etc.
   }
   
+  endHand(gameState) {
+    // Find the last active player
+    const winner = gameState.players.find(p => !p.folded);
+    
+    if (winner) {
+      gameState.winner = winner.id;
+      winner.chips += gameState.pot;
+      gameState.pot = 0;
+    }
+    
+    gameState.isGameOver = true;
+    gameState.currentRound = 'showdown';
+  }
+
   // Create a shuffled deck
   createShuffledDeck() {
     const suits = ['h', 'd', 'c', 's']; // hearts, diamonds, clubs, spades
