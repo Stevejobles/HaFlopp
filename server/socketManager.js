@@ -510,7 +510,7 @@ class SocketManager {
       message: 'New hand starting...',
       startTime: Date.now() + 2000 // 2 second countdown
     });
-
+    
     // Reset the game state for a new hand
     gameState.tableCards = [];
     gameState.pot = 0;
@@ -518,7 +518,45 @@ class SocketManager {
     gameState.currentRound = 'pre-flop';
     gameState.isGameOver = false;
     gameState.winner = null;
-
+    
+    // Check if any players are out of chips
+    const bustedPlayers = gameState.players.filter(player => player.chips <= 0);
+    
+    // Handle players with no chips - give them an option rather than auto-rebuy
+    if (bustedPlayers.length > 0) {
+      bustedPlayers.forEach(player => {
+        // For automatic rebuy (optional fallback):
+        // player.chips = 500; // Minimum buy-in
+        
+        // Notify the specific player they need to add chips
+        const playerSocket = this.userSockets.get(player.id);
+        if (playerSocket) {
+          playerSocket.emit('needChips', {
+            message: 'You have run out of chips! Please add more chips to continue playing.',
+            currentChips: player.chips
+          });
+        }
+        
+        // Also notify the table that a player needs chips
+        this.io.to(gameState.lobbyId).emit('playerNeedsChips', {
+          playerId: player.id,
+          username: player.username
+        });
+      });
+      
+      // If all players are out of chips, we might need to handle that
+      if (bustedPlayers.length === gameState.players.length) {
+        this.io.to(gameState.lobbyId).emit('gameMessage', {
+          message: 'All players need to add more chips to continue playing.'
+        });
+        // We might want to pause the game here until at least one player has chips
+        return; // Don't start a new hand until someone has chips
+      }
+    }
+    
+    // Filter out players with no chips for this hand
+    const activePlayers = gameState.players.filter(player => player.chips > 0);
+    
     // Reset player states but keep chips!
     gameState.players.forEach(player => {
       player.hand = [];
@@ -530,38 +568,24 @@ class SocketManager {
       player.isSmallBlind = false;
       player.isBigBlind = false;
       player.isCurrentTurn = false;
+      // Add a sitting out flag for players with no chips
+      player.isSittingOut = player.chips <= 0;
     });
-
+    
     // Move the dealer button
-    gameState.dealer = (gameState.dealer + 1) % gameState.players.length;
-
-    // Check if any players are out of chips
-    const bustedPlayers = gameState.players.filter(player => player.chips <= 0);
-    if (bustedPlayers.length > 0) {
-      // Reload players with minimum buy-in if they bust
-      bustedPlayers.forEach(player => {
-        player.chips = 500; // Minimum buy-in
-
-        // Announce rebuy
-        this.io.to(gameState.lobbyId).emit('playerRebuy', {
-          playerId: player.id,
-          username: player.username,
-          amount: 500
-        });
-      });
-    }
-
+    gameState.dealer = (gameState.dealer + 1) % activePlayers.length;
+    
     // Create a fresh deck
     gameState.deck = this.createShuffledDeck();
-
-    // Deal cards to players
-    gameState.players.forEach(player => {
+    
+    // Deal cards only to active players
+    activePlayers.forEach(player => {
       player.hand = [gameState.deck.pop(), gameState.deck.pop()];
     });
-
-    // Set up blinds for the new hand
+    
+    // Set up blinds for the new hand - this should handle active players only
     this.setupBlinds(gameState);
-
+    
     // Broadcast the updated game state
     this.broadcastGameState(gameState.lobbyId);
   }
@@ -892,25 +916,44 @@ class SocketManager {
   
   // Setup dealer and blinds
   setupBlinds(gameState) {
-    const activePlayers = gameState.players.length;
+    // Get only active players (not sitting out)
+    const activePlayers = gameState.players.filter(p => !p.isSittingOut);
+    const activeCount = activePlayers.length;
     
-    // Set dealer (random for first game)
-    gameState.dealer = Math.floor(Math.random() * activePlayers);
-    gameState.players[gameState.dealer].isDealer = true;
+    if (activeCount < 2) {
+      // Not enough players to start a hand
+      gameState.isGameOver = true;
+      this.io.to(gameState.lobbyId).emit('gameMessage', {
+        message: 'Not enough players with chips to start a hand.'
+      });
+      return false;
+    }
     
-    // Set small blind
-    gameState.smallBlind = (gameState.dealer + 1) % activePlayers;
-    gameState.players[gameState.smallBlind].isSmallBlind = true;
+    // Set dealer (move to next active player)
+    let dealerIndex = gameState.dealer;
+    // Find the dealer position among active players only
+    let dealerActiveIndex = 0;
+    for (let i = 0; i < activePlayers.length; i++) {
+      if (activePlayers[i].id === gameState.players[dealerIndex].id) {
+        dealerActiveIndex = i;
+        break;
+      }
+    }
     
-    // Set big blind
-    gameState.bigBlind = (gameState.smallBlind + 1) % activePlayers;
-    gameState.players[gameState.bigBlind].isBigBlind = true;
+    // Set the dealer flag
+    activePlayers[dealerActiveIndex].isDealer = true;
     
-    // Place blind bets
-    const sbPlayer = gameState.players[gameState.smallBlind];
-    const bbPlayer = gameState.players[gameState.bigBlind];
+    // Set small blind to next active player
+    const sbActiveIndex = (dealerActiveIndex + 1) % activeCount;
+    const sbPlayer = activePlayers[sbActiveIndex];
+    sbPlayer.isSmallBlind = true;
     
-    // Place small blind
+    // Set big blind to next active player after small blind
+    const bbActiveIndex = (sbActiveIndex + 1) % activeCount;
+    const bbPlayer = activePlayers[bbActiveIndex];
+    bbPlayer.isBigBlind = true;
+    
+    // Place small blind bet
     const sbAmount = Math.min(gameState.smallBlindAmount, sbPlayer.chips);
     sbPlayer.bet = sbAmount;
     sbPlayer.totalBet = sbAmount;
@@ -921,7 +964,7 @@ class SocketManager {
       sbPlayer.isAllIn = true;
     }
     
-    // Place big blind
+    // Place big blind bet
     const bbAmount = Math.min(gameState.bigBlindAmount, bbPlayer.chips);
     bbPlayer.bet = bbAmount;
     bbPlayer.totalBet = bbAmount;
@@ -935,22 +978,31 @@ class SocketManager {
     // Set current bet to big blind amount
     gameState.currentBet = bbAmount;
     
-    // FIXED: In pre-flop, action starts with UTG (player after big blind)
-    gameState.currentTurn = (gameState.bigBlind + 1) % activePlayers;
-    gameState.players[gameState.currentTurn].isCurrentTurn = true;
+    // In pre-flop, action starts with UTG (player after big blind)
+    const utgActiveIndex = (bbActiveIndex + 1) % activeCount;
+    const utgPlayer = activePlayers[utgActiveIndex];
+    
+    // Find the UTG player's index in the full player list
+    const utgIndex = gameState.players.findIndex(p => p.id === utgPlayer.id);
+    gameState.currentTurn = utgIndex;
+    gameState.players[utgIndex].isCurrentTurn = true;
     
     // Initialize the set of players who have acted
     gameState.playersActedThisRound = new Set();
     
-    // Mark folded and all-in players as having acted
+    // Mark sitting out, folded and all-in players as having acted
     for (let i = 0; i < gameState.players.length; i++) {
-      if (gameState.players[i].folded || gameState.players[i].isAllIn) {
+      if (gameState.players[i].isSittingOut || gameState.players[i].folded || gameState.players[i].isAllIn) {
         gameState.playersActedThisRound.add(i);
       }
     }
     
-    // FIXED: Save the last raise position (big blind) to ensure proper round completion
-    gameState.lastRaiseIndex = gameState.bigBlind;
+    // Save the last raise position (big blind) to ensure proper round completion
+    // Find the BB player's index in the full player list
+    const bbIndex = gameState.players.findIndex(p => p.id === bbPlayer.id);
+    gameState.lastRaiseIndex = bbIndex;
+    
+    return true;
   }
 
   showdown(gameState) {

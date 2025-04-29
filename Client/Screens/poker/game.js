@@ -334,7 +334,7 @@ class PokerGame {
         this.log('Player action received:', data);
         this.updatePlayerAction(data);
         this.requestGameStateUpdate();
-      },  // <-- Add this comma
+      },
   
       onGameResult: (data) => {
         this.log('Game result received:', data);
@@ -369,6 +369,48 @@ class PokerGame {
       onPlayerRebuy: (data) => {
         this.log('Player rebuy:', data);
         this.addSystemMessage(`${data.username} has rebought for $${data.amount}`);
+      },
+
+      onNeedChips: (data) => {
+        this.log('Need chips notification received:', data);
+        this.addSystemMessage('You have run out of chips! Please add more chips to continue playing.');
+
+        // Show a more prominent notification
+        const notification = document.createElement('div');
+        notification.className = 'chip-notification';
+        notification.innerHTML = `
+          <h3>Out of Chips!</h3>
+          <p>You need to add more chips to keep playing.</p>
+          <button id="add-chips-now">Add Chips Now</button>
+        `;
+        document.body.appendChild(notification);
+
+        // Add event listener to the button
+        document.getElementById('add-chips-now').addEventListener('click', () => {
+          // Remove notification
+          notification.remove();
+
+          // Open add chips modal
+          const addChipsBtn = document.getElementById('add-chips-btn');
+          if (addChipsBtn) addChipsBtn.click();
+        });
+
+        // Auto-remove after 10 seconds
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.remove();
+          }
+        }, 10000);
+      },
+
+      onPlayerNeedsChips: (data) => {
+        this.log('Player needs chips:', data);
+        this.addSystemMessage(`${data.username} has run out of chips and needs to add more.`);
+      },
+
+      onGameMessage: (data) => {
+        this.log('Game message received:', data);
+        this.addSystemMessage(data.message);
       }
     });
   }

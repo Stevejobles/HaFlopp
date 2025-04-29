@@ -529,6 +529,56 @@ app.post('/api/lobbies/:id/start', requireAuth, async (req, res) => {
   }
 });
 
+app.post('/api/user/add-chips', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const { amount } = req.body;
+    
+    // Validate amount
+    const chipAmount = parseInt(amount, 10);
+    if (isNaN(chipAmount) || chipAmount <= 0) {
+      return res.status(400).json({ message: 'Invalid chip amount' });
+    }
+    
+    // Set a maximum amount to prevent integer overflow
+    // JavaScript's max safe integer is 9007199254740991, but we'll use a more reasonable limit
+    const MAX_CHIPS = 1000000000; // 1 billion chips
+    
+    // Get current user
+    const usersCollection = db.collection("users");
+    const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Calculate new chip total, respecting the max limit
+    const currentChips = user.chips || 0;
+    const newTotal = Math.min(currentChips + chipAmount, MAX_CHIPS);
+    
+    // Update user's chips in the database
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { chips: newTotal } }
+    );
+    
+    if (result.modifiedCount === 0) {
+      return res.status(500).json({ message: 'Failed to update chips' });
+    }
+    
+    // Return success with new total
+    res.json({
+      message: 'Chips added successfully',
+      chips: newTotal,
+      added: newTotal - currentChips // This might be less than requested if hit max
+    });
+    
+  } catch (error) {
+    console.error('Add chips error:', error);
+    res.status(500).json({ message: 'An error occurred while adding chips' });
+  }
+});
+
 // Direct screen routes for our HTML pages
 app.get('/Screens/:page', (req, res) => {
   console.log(`Serving screen: ${req.params.page}`);
