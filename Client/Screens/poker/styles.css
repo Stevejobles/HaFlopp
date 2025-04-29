@@ -261,15 +261,32 @@ body {
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(5px);
   border-radius: 10px;
+
+  /* make it a vertical stack */
   display: flex;
-  flex-wrap: wrap;
-  column-gap: 15px;
-  row-gap: 4px;
-  width: max-content;
-  min-width: 120px;
+  flex-direction: column;
+  align-items: flex-start;
+
+  /* fix the width to prevent overflow */
+  width: 120px;
+
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.3s ease;
+}
+
+/* truncate any over-long names with “…” */
+.table .user .user-content .name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+/* give a little breathing room before balance/bet */
+.table .user .user-content .balance,
+.table .user .user-content .current-bet {
+  margin-top: 4px;
 }
 
 /* Improve visibility for current player */
