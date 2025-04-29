@@ -221,6 +221,11 @@ body {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
+.table .user.me .card {
+  background: white;       /* white card back */
+}
+
+
 .table .user .card:nth-of-type(1) {
   transform: rotate(-5deg) translateX(5px);
   z-index: 2;
@@ -815,10 +820,6 @@ body {
 
 .user .card.flipped {
   animation: flipCard 0.6s ease forwards;
-}
-
-.table .user.me .card {
-  color: black;
 }
 
 .table .user.me .card .number {
