@@ -1,4 +1,5 @@
-// Main Poker Game Logic - Debugging Version
+// Main Poker Game Logic - Fixed Version
+
 class PokerGame {
   constructor() {
     console.log('[PokerGame] Initializing...');
@@ -32,11 +33,11 @@ class PokerGame {
 
     // DOM elements
     this.potElement = document.querySelector('.pot-number');
-    this.usersContainer = document.querySelector('.users');
     this.otherUsersContainer = document.querySelector('.other-users');
     this.backButton = document.querySelector('.back');
     this.tableCardsContainer = document.querySelector('.table-cards');
     this.gameStatusElement = document.querySelector('.game-status');
+    this.tableCardElements = document.querySelectorAll('.table-card');
 
     // Chat elements
     this.chatMessagesContainer = document.getElementById('chat-messages');
@@ -78,6 +79,13 @@ class PokerGame {
 
     // Initialize the game
     this.init();
+    
+    // Set up a game state refresh timer
+    this.gameStateTimer = setInterval(() => {
+      if (this.socket && this.socket.isSocketConnected()) {
+        this.socket.requestGameState();
+      }
+    }, 10000); // Request game state every 10 seconds as a fallback
   }
   
   log(...args) {
@@ -94,7 +102,6 @@ class PokerGame {
   verifyDOMElements() {
     const elements = [
       { name: 'potElement', el: this.potElement },
-      { name: 'usersContainer', el: this.usersContainer },
       { name: 'otherUsersContainer', el: this.otherUsersContainer },
       { name: 'backButton', el: this.backButton },
       { name: 'tableCardsContainer', el: this.tableCardsContainer },
@@ -155,9 +162,6 @@ class PokerGame {
         this.handleAction('raise', amount);
       });
 
-      // PROBLEM: This section has no access to 'socket'
-      // REMOVED: socket.on('requestGameState', (data) => { ... });
-
       // Bet amount controls
       this.betIncreaseBtn.addEventListener('click', () => this.adjustBetAmount(10));
       this.betDecreaseBtn.addEventListener('click', () => this.adjustBetAmount(-10));
@@ -215,7 +219,9 @@ class PokerGame {
       setTimeout(() => {
         if (!this.socket.isSocketConnected()) {
           this.log('Socket not connected after timeout, attempting to reconnect');
-          this.socket.reconnect();
+          if (typeof this.socket.reconnect === 'function') {
+            this.socket.reconnect();
+          }
           this.socket.joinGame(this.lobbyId);
         }
       }, 3000);
@@ -228,6 +234,28 @@ class PokerGame {
     }
   }
 
+  // Method to check connection status (for debug button)
+  checkConnection() {
+    const connected = this.socket && this.socket.isSocketConnected();
+    this.log('Connection check:', connected ? 'Connected' : 'Disconnected');
+    this.addSystemMessage(`Connection status: ${connected ? 'Connected' : 'Disconnected'}`);
+    
+    if (!connected && this.socket) {
+      this.log('Attempting to reconnect...');
+      this.addSystemMessage('Attempting to reconnect...');
+      if (typeof this.socket.reconnect === 'function') {
+        this.socket.reconnect();
+      }
+      setTimeout(() => {
+        this.socket.joinGame(this.lobbyId);
+      }, 1000);
+    } else if (connected) {
+      this.log('Requesting game state...');
+      this.addSystemMessage('Requesting fresh game state...');
+      this.socket.requestGameState();
+    }
+  }
+
   requestGameStateUpdate() {
     if (this.socket && this.socket.isSocketConnected()) {
       this.socket.requestGameState();
@@ -237,7 +265,9 @@ class PokerGame {
       
       // Try to reconnect if socket is disconnected
       if (this.socket) {
-        this.socket.reconnect();
+        if (typeof this.socket.reconnect === 'function') {
+          this.socket.reconnect();
+        }
       }
     }
   }
@@ -303,6 +333,11 @@ class PokerGame {
       
       onChatHistory: (data) => {
         this.log('Chat history received:', data);
+        if (data.history && Array.isArray(data.history)) {
+          data.history.forEach(message => {
+            this.receiveChatMessage(message);
+          });
+        }
       },
 
       onPlayerAction: (data) => {
@@ -335,12 +370,7 @@ class PokerGame {
     this.updateTableCards(gameState.tableCards || []);
 
     // Clear previous player elements
-    if (this.usersContainer) {
-      this.usersContainer.innerHTML = '';
-    }
-    if (this.otherUsersContainer) {
-      this.otherUsersContainer.innerHTML = '';
-    }
+    this.clearPlayerPositions();
 
     // Update players
     this.renderPlayers(gameState.players || []);
@@ -356,22 +386,72 @@ class PokerGame {
     }
   }
 
+  // Clear all player positions
+  clearPlayerPositions() {
+    const positions = document.querySelectorAll('.player-position');
+    positions.forEach(position => {
+      position.innerHTML = '';
+    });
+  }
+
   // Update table cards display
   updateTableCards(tableCards) {
     this.log('Updating table cards:', tableCards);
-    const cardElements = this.tableCardsContainer.querySelectorAll('.table-card');
     
-    // First set all cards to hidden
-    cardElements.forEach(card => {
-      card.classList.add('hidden');
-      card.textContent = '?';
-    });
-    
-    // Then update visible cards
-    for (let i = 0; i < tableCards.length && i < cardElements.length; i++) {
-      cardElements[i].classList.remove('hidden');
-      cardElements[i].textContent = this.formatCard(tableCards[i]).display;
-      this.log(`Set card ${i} to ${this.formatCard(tableCards[i]).display}`);
+    // Update each card element
+    for (let i = 0; i < this.tableCardElements.length; i++) {
+      const cardElement = this.tableCardElements[i];
+      
+      if (i < tableCards.length) {
+        // Card should be visible
+        cardElement.classList.remove('hidden');
+        
+        // Format the card
+        const card = this.formatCard(tableCards[i]);
+        
+        // Update card attributes and content
+        cardElement.setAttribute('data-value', card.value);
+        cardElement.setAttribute('data-suit', card.suit);
+        
+        // Create card display
+        cardElement.innerHTML = `
+          <div class="card-value" style="color: ${card.color || 'black'}">${card.value}</div>
+          <div class="card-suit" style="color: ${card.color || 'black'}">${card.suit}</div>
+        `;
+        
+        // Add custom styles for card elements if they don't exist
+        if (!document.getElementById('card-styles')) {
+          const styleEl = document.createElement('style');
+          styleEl.id = 'card-styles';
+          styleEl.textContent = `
+            .card-value {
+              position: absolute;
+              top: 5px;
+              left: 5px;
+              font-size: 18px;
+              font-weight: bold;
+            }
+            .card-suit {
+              position: absolute;
+              top: 25px;
+              left: 5px;
+              font-size: 22px;
+            }
+            .table-card {
+              position: relative;
+            }
+          `;
+          document.head.appendChild(styleEl);
+        }
+        
+        this.log(`Set card ${i} to ${card.display}`);
+      } else {
+        // Card should be hidden
+        cardElement.classList.add('hidden');
+        cardElement.setAttribute('data-value', '?');
+        cardElement.setAttribute('data-suit', '?');
+        cardElement.innerHTML = '';
+      }
     }
   }
 
@@ -393,25 +473,41 @@ class PokerGame {
     this.log('Current player:', currentPlayer);
     this.log('Other players:', otherPlayers.length);
     
-    // Render current user
+    // Render current user directly in the table
     if (currentPlayer) {
       this.renderCurrentPlayer(currentPlayer);
     } else {
       this.log('Warning: Current player not found in player list');
     }
     
-    // Render other players
+    // Render other players in fixed positions
     this.renderOtherPlayers(otherPlayers);
   }
 
   // Render current player
   renderCurrentPlayer(player) {
     this.log('Rendering current player:', player);
-    if (!this.usersContainer) {
-      this.log('Error: users container not found');
-      return;
+    
+    // Create a special position element for current player if it doesn't exist
+    let positionElement = document.getElementById('current-player-position');
+    if (!positionElement) {
+      positionElement = document.createElement('div');
+      positionElement.id = 'current-player-position';
+      positionElement.className = 'current-player-position';
+      positionElement.style.position = 'absolute';
+      positionElement.style.bottom = '10px';
+      positionElement.style.left = '50%';
+      positionElement.style.transform = 'translateX(-50%)';
+      positionElement.style.zIndex = '10';
+      
+      // Add it to the table element
+      document.querySelector('.table').appendChild(positionElement);
     }
 
+    // Clear previous content
+    positionElement.innerHTML = '';
+
+    // Create player element
     const userElement = document.createElement('div');
     userElement.className = 'user me';
     userElement.dataset.userId = player.id;
@@ -473,25 +569,23 @@ class PokerGame {
       </div>
     `;
     
-    this.usersContainer.appendChild(userElement);
+    positionElement.appendChild(userElement);
   }
 
   // Render other players
   renderOtherPlayers(otherPlayers) {
     this.log('Rendering', otherPlayers.length, 'other players');
   
-    // Clear any existing players from positions
-    document.querySelectorAll('.player-position').forEach(position => {
-      position.innerHTML = '';
-    });
-  
-    // Place players in fixed positions
+    // Map players to fixed positions
     otherPlayers.forEach((player, index) => {
       // Only display up to 5 players
       if (index >= 5) return;
       
       const positionElement = document.getElementById(`position-${index}`);
-      if (!positionElement) return;
+      if (!positionElement) {
+        this.log(`Position element position-${index} not found`);
+        return;
+      }
   
       const playerElement = document.createElement('div');
       playerElement.className = 'user';
@@ -539,10 +633,8 @@ class PokerGame {
     this.log('Handling player join:', data);
     this.addSystemMessage(`${data.username || 'A player'} has joined the table.`);
     
-    // Refresh game state
-    if (this.socket && this.socket.isSocketConnected()) {
-      this.socket.joinGame(this.lobbyId);
-    }
+    // Request new game state to make sure we have updated player list
+    this.requestGameStateUpdate();
   }
 
   // Handle player leaving
@@ -562,6 +654,9 @@ class PokerGame {
         }
       }, 500);
     }
+    
+    // Request new game state to make sure we have updated player list
+    this.requestGameStateUpdate();
   }
 
   // Update game status display
@@ -617,8 +712,6 @@ class PokerGame {
     this.gameStatusElement.textContent = statusText;
   }
   
-  
-
   // Update action buttons based on available actions
   updateActionButtons(availableActions) {
     this.log('Updating action buttons with available actions:', availableActions);
@@ -736,10 +829,6 @@ class PokerGame {
     }
   }
   
-  
-  
-  
-  
   // Update player action display
   updatePlayerAction(data) {
     const { userId, action, amount } = data;
@@ -759,15 +848,15 @@ class PokerGame {
         actionType = 'checked';
         break;
       case 'call':
-        actionText = `Called $${amount || ''}`;
+        actionText = `Called ${amount || this.gameState?.currentBet || ''}`;
         actionType = 'bet';
         break;
       case 'bet':
-        actionText = `Bet $${amount || ''}`;
+        actionText = `Bet ${amount || ''}`;
         actionType = 'bet';
         break;
       case 'raise':
-        actionText = `Raised to $${amount || ''}`;
+        actionText = `Raised to ${amount || ''}`;
         actionType = 'raised';
         break;
       case 'all-in':
@@ -778,268 +867,5 @@ class PokerGame {
         this.log('Unknown action type:', action);
         return;
     }
-    
-    // Store action
-    this.playerActions[userId] = {
-      type: actionType,
-      text: actionText
-    };
-    
-    // Update player elements
-    this.updatePlayerActionElements(userId, actionType, actionText);
-    
-    // Add to chat
-    const playerName = userId === this.currentUser.id ? 'You' :
-      this.gameState?.players.find(p => p.id === userId)?.username || 'Player';
-    this.addSystemMessage(`${playerName} ${actionText.toLowerCase()}`);
-  }
-  
-  // Update player action elements in the DOM
-  updatePlayerActionElements(userId, actionType, actionText) {
-    this.log('Updating player action elements for:', userId, actionType, actionText);
-    
-    // Find player element
-    const playerElement = document.querySelector(`.user[data-user-id="${userId}"]`);
-    if (!playerElement) {
-      this.log('Player element not found for user ID:', userId);
-      return;
-    }
-    
-    // Find or create action element
-    let actionElement = playerElement.querySelector('.player-action');
-    if (!actionElement) {
-      this.log('Creating new action element for player');
-      actionElement = document.createElement('div');
-      actionElement.className = 'player-action';
-      const userContent = playerElement.querySelector('.user-content');
-      if (userContent) {
-        userContent.appendChild(actionElement);
-      } else {
-        this.log('User content element not found');
-        return;
-      }
-    }
-    
-    // Update action element
-    actionElement.textContent = actionText;
-    actionElement.className = `player-action ${actionType}`;
-    
-    // Remove hidden class
-    actionElement.classList.remove('hidden');
-    
-    // Clear action after a delay (except for fold)
-    if (actionType !== 'folded') {
-      setTimeout(() => {
-        if (actionElement && !actionElement.closest('body')) {
-          this.log('Action element no longer in DOM, skipping hide');
-          return; // Element no longer in DOM
-        }
-        this.log('Hiding action element after timeout');
-        actionElement.classList.add('hidden');
-      }, 3000);
-    }
-  }
-  
-  // Format card for display (e.g. "Ah" -> "A♥")
-  formatCard(cardCode) {
-    if (!cardCode) return { display: '?', value: '?', suit: '?' };
-    
-    this.log('Formatting card:', cardCode);
-    
-    const value = cardCode.slice(0, 1);
-    const suit = cardCode.slice(1, 2);
-    
-    // Convert suit to symbol
-    let suitSymbol = suit;
-    switch (suit) {
-      case 'h':
-        suitSymbol = '♥';
-        break;
-      case 'd':
-        suitSymbol = '♦';
-        break;
-      case 'c':
-        suitSymbol = '♣';
-        break;
-      case 's':
-        suitSymbol = '♠';
-        break;
-    }
-    
-    // Convert value for special cards
-    let displayValue = value;
-    if (value === 'T') displayValue = '10';
-    
-    return {
-      display: displayValue + suitSymbol,
-      value: displayValue,
-      suit: suitSymbol
-    };
-  }
-  
-  // Send a chat message
-  sendChatMessage() {
-    const message = this.chatInput.value.trim();
-    if (!message) return;
-  
-    this.log('Sending chat message:', message);
-  
-    // Clear input
-    this.chatInput.value = '';
-  
-    // Make sure we have the correct lobby ID
-    if (!this.lobbyId) {
-      console.error('No lobby ID available for chat message');
-      this.addSystemMessage('Error: Cannot send message - no game ID');
-      return;
-    }
-  
-    // Create message data
-    const messageData = {
-      userId: this.currentUser.id,
-      username: this.currentUser.username || 'You',
-      message,
-      timestamp: new Date().toISOString(),
-      isSelf: true
-    };
-  
-    // Send message to server
-    if (this.socket && this.socket.isSocketConnected()) {
-      // Explicitly include the lobby ID in the message data
-      this.socket.emit('chatMessage', {
-        lobbyId: this.lobbyId,
-        message: message
-      });
-  
-      // Add message to chat locally immediately
-      this.addChatMessage(messageData);
-      
-      // Force scroll to bottom
-      this.scrollChatToBottom();
-    } else {
-      console.error("Socket not connected, can't send chat message");
-      this.addSystemMessage("Message not sent - connection issues");
-      
-      // Try to reconnect socket
-      if (this.socket) {
-        this.socket.reconnect();
-      }
-    }
-  }
-
-  // Receive a chat message from the server
-  receiveChatMessage(data) {
-    this.log('Received chat message:', data);
-
-    // Skip own messages (we already added them locally) - FIXED to check properly
-    if (data.userId === this.currentUser.id && data.timeStamp !== (this.lastMessageSent?.timeStamp)) {
-      this.log('Skipping own message');
-      return;
-    }
-
-    // Add message to chat
-    this.addChatMessage({
-      ...data,
-      isSelf: data.userId === this.currentUser.id
-    });
-  }
-  
-  // Add a chat message to the display
-  addChatMessage(data) {
-    this.log('Adding chat message to display:', data);
-    const { userId, username, message, timestamp, isSelf } = data;
-    
-    // Create message element
-    const messageElement = document.createElement('div');
-    messageElement.className = `chat-message ${isSelf ? 'my-message' : 'other-message'}`;
-    
-    // Format timestamp
-    let time;
-    try {
-      time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch (e) {
-      time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    
-    // Set content with better visibility
-    messageElement.innerHTML = `
-      <div class="message-sender">${username}</div>
-      <div class="message-content">${this.escapeHTML(message)}</div>
-      <div class="message-time">${time}</div>
-    `;
-    
-    // Add to container
-    this.chatMessagesContainer.appendChild(messageElement);
-    
-    // Force scroll to bottom
-    this.scrollChatToBottom();
-  }
-  
-  // Add a system message to the chat
-  addSystemMessage(message) {
-    this.log('Adding system message:', message);
-    const messageElement = document.createElement('div');
-    messageElement.className = 'system-message';
-    messageElement.textContent = message;
-    
-    this.chatMessagesContainer.appendChild(messageElement);
-    this.scrollChatToBottom();
-  }
-  
-  // Scroll chat container to the bottom
-  scrollChatToBottom() {
-    this.chatMessagesContainer.scrollTop = this.chatMessagesContainer.scrollHeight;
-  }
-  
-  // Escape HTML to prevent XSS in chat
-  escapeHTML(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-  
-  // Handle back button click
-  handleBackButton() {
-    this.log('Back button clicked');
-    if (confirm('Are you sure you want to leave the game? This will remove you from the table.')) {
-      // Disconnect socket
-      this.socket.disconnect();
-      clearInterval(this.gameStateTimer);
-      window.location.href = '../index.html';
-    }
   }
 }
-
-
-
-// Initialize the game when the page loads
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('DOM loaded, initializing game');
-  // Create game instance
-  window.pokerGame = new PokerGame();
-  
-  // Add debug button for testing
-  const debugBtn = document.createElement('button');
-  debugBtn.textContent = '🐞 Debug Connection';
-  debugBtn.style.position = 'fixed';
-  debugBtn.style.bottom = '10px';
-  debugBtn.style.left = '140px';
-  debugBtn.style.zIndex = '9999';
-  debugBtn.style.padding = '8px 12px';
-  debugBtn.style.background = 'rgba(255,0,0,0.3)';
-  debugBtn.style.border = 'none';
-  debugBtn.style.borderRadius = '5px';
-  debugBtn.style.color = 'white';
-  debugBtn.style.cursor = 'pointer';
-  
-  debugBtn.addEventListener('click', () => {
-    if (window.pokerGame) {
-      window.pokerGame.checkConnection();
-    } else {
-      console.error('Game instance not found');
-      alert('Game instance not initialized. Try refreshing the page.');
-    }
-  });
-  
-  document.body.appendChild(debugBtn);
-});
