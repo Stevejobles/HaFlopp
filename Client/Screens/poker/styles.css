@@ -335,14 +335,34 @@ body {
   position: absolute;
   background: rgba(255, 215, 0, 0.8);
   color: black;
-  padding: 4px 10px;
+  padding: 3px 8px;  /* Smaller padding */
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 10px;   /* Smaller font size */
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   letter-spacing: 1px;
   font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);  /* Add shadow for better readability */
+  z-index: 5;  /* Ensure it's above other content */
+}
+
+.table .user.allin .user-content {
+  animation: allin-glow 2s infinite alternate;
+}
+
+@keyframes allin-glow {
+  from { box-shadow: 0 0 5px 2px rgba(255, 215, 0, 0.3); }
+  to { box-shadow: 0 0 10px 4px rgba(255, 215, 0, 0.5); }
+}
+
+.player-action {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  font-size: 12px;
 }
 
 /* Role indicators - More modern style */
@@ -398,6 +418,21 @@ body {
   transform: translateX(-50%);
   z-index: 5;
 }
+
+.all-in-btn {
+  background: linear-gradient(to bottom, #f39c12, #d35400);
+  color: white;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.all-in-btn:hover {
+  background: linear-gradient(to bottom, #e67e22, #c0392b);
+  transform: translateY(-3px);
+}
+
 
 .action-buttons {
   display: flex;

@@ -69,6 +69,7 @@ class PokerGame {
     this.betAmountInput = document.getElementById('bet-amount');
     this.betIncreaseBtn = document.getElementById('bet-increase');
     this.betDecreaseBtn = document.getElementById('bet-decrease');
+    this.allInBtn = document.getElementById('all-in-btn');
 
     // Get all action buttons
     this.actionButtons = document.querySelectorAll('.action-btn');
@@ -78,6 +79,19 @@ class PokerGame {
     document
       .querySelectorAll('.player-position')
       .forEach(pos => pos.innerHTML = '');
+  }
+
+  clearAllPlayerActions() {
+    this.log('Clearing all player action displays for new round');
+    
+    // Reset the player actions object
+    this.playerActions = {};
+    
+    // Find all player action elements and hide them
+    document.querySelectorAll('.player-action').forEach(actionElement => {
+      actionElement.textContent = '';
+      actionElement.className = 'player-action hidden';
+    });
   }
   
   // Initialize socket connection
@@ -175,6 +189,7 @@ class PokerGame {
       // Bet amount controls
       this.betIncreaseBtn.addEventListener('click', () => this.adjustBetAmount(10));
       this.betDecreaseBtn.addEventListener('click', () => this.adjustBetAmount(-10));
+      this.allInBtn.addEventListener('click', () => this.handleAllIn());
 
       // Chat
       this.sendMessageBtn.addEventListener('click', () => this.sendChatMessage());
@@ -438,6 +453,12 @@ class PokerGame {
 
     this.gameState = gameState;
     this.playerState = playerState;
+
+    if (this.previousRound && this.previousRound !== gameState.currentRound) {
+      this.clearAllPlayerActions();
+    }
+
+    this.previousRound = gameState.currentRound;
 
     // 1) Update pot
     if (gameState.pot !== undefined) {
@@ -775,6 +796,8 @@ class PokerGame {
           this.raiseBtn.classList.remove('disabled');
           this.betAmountInput.disabled = false;
           break;
+        case 'all-in':
+          return { text: `All In ($${amount})`, type: 'all-in' };
       }
     });
     
@@ -797,6 +820,14 @@ class PokerGame {
           this.betAmountInput.value = minRaise;
         }
       }
+    }
+    if (currentPlayer && currentPlayer.chips > 0) {
+      this.allInBtn.disabled = false;
+      this.allInBtn.classList.remove('disabled');
+      this.allInBtn.textContent = `All In ($${currentPlayer.chips})`;
+    } else {
+      this.allInBtn.disabled = true;
+      this.allInBtn.classList.add('disabled');
     }
   }
   
@@ -1133,6 +1164,68 @@ class PokerGame {
         this.socket.disconnect();
       }
       window.location.href = '../index.html';
+    }
+  }
+
+  handleAllIn() {
+    this.log('Handling all-in action');
+    
+    // Get the current player's chips 
+    const currentPlayer = this.gameState.players.find(p => p.id === this.currentUser.id);
+    if (!currentPlayer) {
+      alert('Cannot perform all-in action: Player data not found');
+      return;
+    }
+    
+    // Use the player's total chips for all-in
+    const amount = currentPlayer.chips;
+    
+    // Disable all buttons to prevent double-clicks
+    this.actionButtons.forEach(btn => {
+      btn.disabled = true;
+      btn.classList.add('disabled');
+    });
+    this.betAmountInput.disabled = true;
+    
+    // Show the action immediately in UI
+    this.updatePlayerAction({
+      userId: this.currentUser.id,
+      action: 'all-in',
+      amount: amount
+    });
+    
+    // Send action to server
+    if (this.socket && this.socket.isSocketConnected()) {
+      // Determine the correct action type based on game state
+      let actionType;
+      
+      if (this.gameState.currentBet === 0) {
+        // If no current bet, it's a bet action
+        actionType = 'bet';
+      } else if (this.gameState.currentBet > 0) {
+        // If there's a current bet, it's a raise or call action
+        if (amount > this.gameState.currentBet) {
+          actionType = 'raise';
+        } else {
+          actionType = 'call';
+        }
+      }
+      
+      this.socket.sendAction(actionType, amount);
+      this.requestGameStateUpdate();
+    } else {
+      this.log('Cannot send action - socket not connected');
+      this.addSystemMessage("Message not sent - connection issues");
+      
+      // Re-enable buttons after delay
+      setTimeout(() => {
+        if (this.playerState && this.playerState.availableActions) {
+          this.updateActionButtons(this.playerState.availableActions);
+        }
+      }, 1000);
+      
+      // Attempt reconnect
+      this.tryReconnect();
     }
   }
 }
