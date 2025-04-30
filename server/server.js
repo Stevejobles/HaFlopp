@@ -692,7 +692,6 @@ app.post('/api/user/quick-add-money', requireAuth, async (req, res) => {
 */
 app.post('/api/forgot-password', async (req, res) => {
   try {
-  try {
     const { email } = req.body;
     
     if (!email) {
