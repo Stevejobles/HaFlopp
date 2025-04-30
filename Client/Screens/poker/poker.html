@@ -236,10 +236,6 @@
   </div>
   </div>
 
-  <!-- Debug panel -->
-  <div class="debug-panel" id="debug-panel"></div>
-  <button class="debug-toggle" id="debug-toggle">🐞 Show Debug</button>
-
   <!-- Load socket.io client -->
   <script src="/socket.io/socket.io.js"></script>
 
@@ -249,17 +245,6 @@
     window.addEventListener('error', function (e) {
       console.error('Global error:', e.message);
       addDebugEntry('ERROR: ' + e.message, true);
-    });
-
-    // Debug panel functionality
-    const debugPanel = document.getElementById('debug-panel');
-    const debugToggle = document.getElementById('debug-toggle');
-    let debugVisible = false;
-
-    debugToggle.addEventListener('click', function () {
-      debugVisible = !debugVisible;
-      debugPanel.style.display = debugVisible ? 'block' : 'none';
-      debugToggle.textContent = debugVisible ? '🐞 Hide Debug' : '🐞 Show Debug';
     });
 
     function addDebugEntry(message, isError = false) {
