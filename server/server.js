@@ -690,177 +690,134 @@ app.post('/api/user/quick-add-money', requireAuth, async (req, res) => {
  * Forgot password API - Request password reset email
  * POST /api/forgot-password
 */
-
-nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  },
-  debug: true, // Enable verbose logging
-  logger: true  // Log to console
-});
-
 app.post('/api/forgot-password', async (req, res) => {
-  let emailSent = false;
-
   try {
-    // Check if we have SMTP settings in environment variables
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-      console.log('----- EMAIL SENDING ATTEMPT -----');
-      console.log(`SMTP_HOST: ${process.env.SMTP_HOST || 'not set'}`);
-      console.log(`SMTP_PORT: ${process.env.SMTP_PORT || '587 (default)'}`);
-      console.log(`SMTP_SECURE: ${process.env.SMTP_SECURE || 'false (default)'}`);
-      console.log(`SMTP_USER: ${process.env.SMTP_USER.substring(0, 3)}...`); // Show only first 3 chars for security
-      console.log(`SMTP_PASS: ${process.env.SMTP_PASS ? '******** (set)' : 'not set'}`);
-
-      // Gmail-specific transport configuration
-      const transportConfig = {
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
-        },
-        // Log all SMTP traffic for debugging
-        debug: true,
-        logger: true
-      };
-
-      console.log('Creating transporter with config:', JSON.stringify({
-        ...transportConfig,
-        auth: {
-          user: transportConfig.auth.user.substring(0, 3) + '...',
-          pass: '********'
-        }
-      }));
-
-      const transporter = nodemailer.createTransport(transportConfig);
-
-      // Test the connection explicitly before sending
-      console.log('Testing SMTP connection...');
-      try {
-        const verified = await transporter.verify();
-        console.log('SMTP connection verified successfully:', verified);
-      } catch (verifyError) {
-        console.error('SMTP connection verification FAILED:', verifyError);
-        throw new Error(`SMTP verification failed: ${verifyError.message}`);
-      }
-
-      // Get the base URL
-      const baseUrl = process.env.BASE_URL || `http://${req.get('host') || 'localhost:3000'}`;
-
-      // Setup email data with debugging info included in the body
-      const mailOptions = {
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
-        to: user.email,
-        subject: 'Password Reset Request',
-        text: `You requested a password reset. Please use the following link to reset your password: ${baseUrl}/Screens/reset-password.html?token=${token}`,
-        html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2c3e50;">Password Reset Request</h2>
-          <p>You requested a password reset for your Poker Game account.</p>
-          <p>Please click the button below to reset your password:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${baseUrl}/Screens/reset-password.html?token=${token}" 
-               style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-              Reset Password
-            </a>
-          </div>
-          <p>This link will expire in 1 hour.</p>
-          <p>If you didn't request this password reset, please ignore this email.</p>
-          <hr style="border: 1px solid #eee; margin: 20px 0;">
-          <p style="color: #7f8c8d; font-size: 12px;">Poker Game Team</p>
-          <p style="color: #999; font-size: 10px;">Debug info: Sent from ${baseUrl} at ${new Date().toISOString()}</p>
-        </div>
-      `
-      };
-
-      console.log('Mail options prepared:', JSON.stringify({
-        ...mailOptions,
-        to: mailOptions.to.substring(0, 3) + '...' // Hide full email for security
-      }));
-
-      // Use the callback version of sendMail for more control
-      console.log('Attempting to send email...');
-
-      transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-          console.error('Email sending error (from callback):', error);
-          // Log specific error details for debugging
-          if (error.code) console.error('Error code:', error.code);
-          if (error.command) console.error('Failed command:', error.command);
-          if (error.response) console.error('Server response:', error.response);
-
-          // Return as development mode if we encounter SMTP errors
-          return res.status(200).json({
-            message: 'If an account with that email exists, a password reset link has been sent.',
-            development: true,
-            token: token,
-            error: error.message,
-            error_code: error.code,
-            error_command: error.command
-          });
-        } else {
-          console.log('Email sent successfully:', info);
-          console.log('Message ID:', info.messageId);
-          console.log('Response:', info.response);
-
-          // Return success message
-          return res.status(200).json({
-            message: 'If an account with that email exists, a password reset link has been sent.'
-          });
-        }
-      });
-
-      // If sendMail hasn't returned after 30 seconds, assume it's hanging and continue
-      setTimeout(() => {
-        if (!res.headersSent) {
-          console.log('Email sending timed out after 30 seconds');
-          return res.status(200).json({
-            message: 'If an account with that email exists, a password reset link has been sent.',
-            development: true,
-            token: token,
-            error: 'Email sending timed out'
-          });
-        }
-      }, 30000);
-
-      // Don't call res.json here, as it will be called in the callback or timeout
-      return;
-
-    } else {
-      // Development fallback - log instead of actually sending
-      console.log('No SMTP credentials found. In development mode.');
-      console.log('\n-------- PASSWORD RESET EMAIL PREVIEW --------');
-      console.log(`To: ${user.email}`);
-      console.log(`Subject: Password Reset Request`);
-      console.log(`Reset Link: http://localhost:3000/Screens/reset-password.html?token=${token}`);
-      console.log('----------------------------------------------\n');
-
-      // Return early with success response for development
-      return res.status(200).json({
-        message: 'If an account with that email exists, a password reset link has been sent.',
-        development: true,
-        token: token // Only include token in development mode
-      });
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
     }
-
+    
+    // Find the user with this email
+    const usersCollection = db.collection("users");
+    const user = await usersCollection.findOne({ email });
+    
+    // Generate a token whether the user exists or not
+    // This way, we don't leak information about which emails exist in our system
+    const token = crypto.randomBytes(32).toString('hex');
+    
+    // Only proceed with token storage if the user exists
+    if (user) {
+      // Store the token in the database with expiration time (1 hour from now)
+      const resetTokensCollection = db.collection("reset_tokens");
+      
+      // Set expiration time (1 hour from now)
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 1);
+      
+      // Create the token record
+      await resetTokensCollection.insertOne({
+        userId: user._id,
+        token,
+        expiresAt
+      });
+      
+      // Send email if SMTP settings are available
+      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+        console.log('----- EMAIL SENDING ATTEMPT -----');
+        console.log(`Sending reset email to: ${email}`);
+        
+        // Get the base URL
+        const baseUrl = process.env.BASE_URL || `http://${req.get('host') || 'localhost:3000'}`;
+        
+        // Create transporter with proper configuration
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST || 'smtp.gmail.com',
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: process.env.SMTP_SECURE === 'true',
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS
+          },
+          // Only enable debugging in development
+          debug: process.env.NODE_ENV !== 'production',
+          logger: process.env.NODE_ENV !== 'production'
+        });
+        
+        // Create email content
+        const mailOptions = {
+          from: process.env.SMTP_FROM || process.env.SMTP_USER,
+          to: user.email,
+          subject: 'Password Reset Request',
+          text: `You requested a password reset. Please use the following link to reset your password: ${baseUrl}/Screens/reset-password.html?token=${token}`,
+          html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2c3e50;">Password Reset Request</h2>
+            <p>You requested a password reset for your Poker Game account.</p>
+            <p>Please click the button below to reset your password:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${baseUrl}/Screens/reset-password.html?token=${token}" 
+                 style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Reset Password
+              </a>
+            </div>
+            <p>This link will expire in 1 hour.</p>
+            <p>If you didn't request this password reset, please ignore this email.</p>
+            <hr style="border: 1px solid #eee; margin: 20px 0;">
+            <p style="color: #7f8c8d; font-size: 12px;">Poker Game Team</p>
+          </div>
+          `
+        };
+        
+        try {
+          // Verify the connection first
+          await transporter.verify();
+          console.log('SMTP connection verified');
+          
+          // Send the email
+          const info = await transporter.sendMail(mailOptions);
+          console.log('Email sent successfully:', info.messageId);
+        } catch (emailError) {
+          console.error('Error sending email:', emailError);
+          // We continue without returning an error to the client
+          // This maintains security by not revealing if an email exists
+        }
+      } else {
+        // Development mode - log email details but don't actually send
+        console.log('\n-------- PASSWORD RESET EMAIL PREVIEW --------');
+        console.log(`To: ${user.email}`);
+        console.log(`Subject: Password Reset Request`);
+        console.log(`Reset Link: http://localhost:3000/Screens/reset-password.html?token=${token}`);
+        console.log('----------------------------------------------\n');
+      }
+    } else {
+      console.log(`Password reset requested for non-existent email: ${email}`);
+    }
+    
+    // Always return the same response whether the user exists or not
+    // For security reasons, don't reveal if an email exists in our system
+    const response = {
+      message: 'If an account with that email exists, a password reset link has been sent.'
+    };
+    
+    // Only in development mode, include the token in the response
+    if (process.env.NODE_ENV !== 'production' && user) {
+      response.development = true;
+      response.token = token;
+    }
+    
+    return res.status(200).json(response);
+    
   } catch (error) {
     console.error('Forgot password error:', error);
-
-    // Return as development mode if we encounter any errors
+    
+    // Still return a "success" response for security
+    // Don't reveal if the error was related to a specific email
     return res.status(200).json({
-      message: 'If an account with that email exists, a password reset link has been sent.',
-      development: true,
-      token: token,
-      error: error.message
+      message: 'If an account with that email exists, a password reset link has been sent.'
     });
   }
-
 });
 
 /**
