@@ -729,6 +729,7 @@ app.post('/api/forgot-password', async (req, res) => {
         const baseUrl = process.env.BASE_URL || `http://${req.get('host') || 'localhost:3000'}`;
         const resetLink = `${baseUrl}/Screens/reset-password.html?token=${token}`;
 
+        console.log('we innnn swamp izzo');
         const { data, error } = await resend.emails.send({
           from: process.env.FROM_EMAIL || 'onboarding@resend.dev',
           to: user.email,
