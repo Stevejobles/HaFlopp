@@ -7,8 +7,10 @@ const bcrypt = require('bcrypt');
 const { MongoClient, ObjectId } = require('mongodb');
 const http = require('http');
 const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 const { Resend } = require('resend');
 const resend = new Resend(process.env.RESEND_API_KEY);
+
 
 // Import our models
 const lobbyModel = require('./models/lobby');
