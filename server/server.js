@@ -7,6 +7,8 @@ const bcrypt = require('bcrypt');
 const { MongoClient, ObjectId } = require('mongodb');
 const http = require('http');
 const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Import our models
 const lobbyModel = require('./models/lobby');
@@ -722,95 +724,61 @@ app.post('/api/forgot-password', async (req, res) => {
         expiresAt
       });
       
-      // Send email if SMTP settings are available
-      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        console.log('----- EMAIL SENDING ATTEMPT -----');
-        console.log(`Sending reset email to: ${email}`);
-        
-        // Get the base URL
+      // Send email with Resend
+      try {
         const baseUrl = process.env.BASE_URL || `http://${req.get('host') || 'localhost:3000'}`;
-        
-        // Create transporter with proper configuration
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          port: parseInt(process.env.SMTP_PORT || '587'),
-          secure: process.env.SMTP_SECURE === 'true',
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS
-          },
-          // Only enable debugging in development
-          debug: process.env.NODE_ENV !== 'production',
-          logger: process.env.NODE_ENV !== 'production'
-        });
-        
-        // Create email content
-        const mailOptions = {
-          from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        const resetLink = `${baseUrl}/Screens/reset-password.html?token=${token}`;
+
+        const { data, error } = await resend.emails.send({
+          from: process.env.FROM_EMAIL || 'onboarding@resend.dev',
           to: user.email,
           subject: 'Password Reset Request',
-          text: `You requested a password reset. Please use the following link to reset your password: ${baseUrl}/Screens/reset-password.html?token=${token}`,
           html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2c3e50;">Password Reset Request</h2>
-            <p>You requested a password reset for your Poker Game account.</p>
-            <p>Please click the button below to reset your password:</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${baseUrl}/Screens/reset-password.html?token=${token}" 
-                 style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                Reset Password
-              </a>
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #2c3e50;">Password Reset Request</h2>
+              <p>You requested a password reset for your Poker Game account.</p>
+              <p>Please click the button below to reset your password:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${resetLink}" 
+                  style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                  Reset Password
+                </a>
+              </div>
+              <p>This link will expire in 1 hour.</p>
+              <p>If you didn't request this password reset, please ignore this email.</p>
             </div>
-            <p>This link will expire in 1 hour.</p>
-            <p>If you didn't request this password reset, please ignore this email.</p>
-            <hr style="border: 1px solid #eee; margin: 20px 0;">
-            <p style="color: #7f8c8d; font-size: 12px;">Poker Game Team</p>
-          </div>
-          `
-        };
-        
-        try {
-          // Verify the connection first
-          await transporter.verify();
-          console.log('SMTP connection verified');
-          
-          // Send the email
-          const info = await transporter.sendMail(mailOptions);
-          console.log('Email sent successfully:', info.messageId);
-        } catch (emailError) {
-          console.error('Error sending email:', emailError);
-          // We continue without returning an error to the client
-          // This maintains security by not revealing if an email exists
+            `
+        });
+
+        if (error) {
+          console.error('Error sending email with Resend:', error);
+        } else {
+          console.log('Reset password email sent successfully with ID:', data.id);
         }
-      } else {
-        // Development mode - log email details but don't actually send
-        console.log('\n-------- PASSWORD RESET EMAIL PREVIEW --------');
-        console.log(`To: ${user.email}`);
-        console.log(`Subject: Password Reset Request`);
-        console.log(`Reset Link: http://localhost:3000/Screens/reset-password.html?token=${token}`);
-        console.log('----------------------------------------------\n');
+      } catch (emailError) {
+        console.error('Exception when sending email with Resend:', emailError);
       }
     } else {
       console.log(`Password reset requested for non-existent email: ${email}`);
     }
-    
+
     // Always return the same response whether the user exists or not
     // For security reasons, don't reveal if an email exists in our system
     const response = {
       message: 'If an account with that email exists, a password reset link has been sent.'
     };
-    
+
     // Only in development mode, include the token in the response
     if (process.env.NODE_ENV !== 'production' && user) {
       response.development = true;
       response.token = token;
     }
-    
+
     return res.status(200).json(response);
-    
+
   } catch (error) {
     console.error('Forgot password error:', error);
-    
+
     // Still return a "success" response for security
     // Don't reveal if the error was related to a specific email
     return res.status(200).json({
