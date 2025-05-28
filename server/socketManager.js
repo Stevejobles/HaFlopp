@@ -1,6 +1,6 @@
 const { Server } = require('socket.io');
-const jwt = require('jsonwebtoken');
 const { MongoClient, ObjectId } = require('mongodb');
+const jwt = require('jsonwebtoken');
 
 // Game state tracking
 class SocketManager {

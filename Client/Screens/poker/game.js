@@ -28,7 +28,6 @@ class PokerGame {
     this.maxOtherPlayers = 5;
     this.playerActions = {};
     this.isGameStarted = false;
-    this.debug = true;
     this.lastMessageSent = null;
 
     // DOM elements
@@ -45,6 +44,10 @@ class PokerGame {
 
     // Initialize the game
     this.init();
+  }
+
+  log(...args) {
+    console.log('[PokerGame]', ...args);
   }
   
   // Initialize DOM elements
@@ -111,15 +114,6 @@ class PokerGame {
     this.setupSocketCallbacks();
   }
   
-  log(...args) {
-    if (this.debug) {
-      console.log('[PokerGame]', ...args);
-      // If debug panel exists, also add entry there
-      if (typeof addDebugEntry === 'function') {
-        addDebugEntry(args.join(' '));
-      }
-    }
-  }
   
   // Verify that all DOM elements exist
   verifyDOMElements() {
@@ -228,7 +222,12 @@ class PokerGame {
 
       // Connect socket with user ID
       this.log('Connecting socket with user ID:', this.currentUser.id);
-      this.socket.connectWithAuth(this.currentUser.id); 
+      setTimeout(() => {
+        if (this.socket.isSocketConnected()) {
+          this.socket.joinGame(this.lobbyId);
+        }
+      }, 1000);
+
 
       // Disable all action buttons initially
       this.updateActionButtons([]);
@@ -1235,29 +1234,4 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, initializing game');
   // Create game instance
   window.pokerGame = new PokerGame();
-  
-  // Add debug button for testing
-  const debugBtn = document.createElement('button');
-  debugBtn.textContent = '🐞 Debug Connection';
-  debugBtn.style.position = 'fixed';
-  debugBtn.style.bottom = '10px';
-  debugBtn.style.left = '140px';
-  debugBtn.style.zIndex = '9999';
-  debugBtn.style.padding = '8px 12px';
-  debugBtn.style.background = 'rgba(255,0,0,0.3)';
-  debugBtn.style.border = 'none';
-  debugBtn.style.borderRadius = '5px';
-  debugBtn.style.color = 'white';
-  debugBtn.style.cursor = 'pointer';
-  
-  debugBtn.addEventListener('click', () => {
-    if (window.pokerGame) {
-      window.pokerGame.checkConnection();
-    } else {
-      console.error('Game instance not found');
-      alert('Game instance not initialized. Try refreshing the page.');
-    }
-  });
-  
-  document.body.appendChild(debugBtn);
 });

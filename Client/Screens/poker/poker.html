@@ -12,50 +12,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
-    /* Debugging styles */
-    .debug-panel {
-      position: fixed;
-      bottom: 60px;
-      right: 10px;
-      background: rgba(0, 0, 0, 0.8);
-      border-radius: 5px;
-      padding: 10px;
-      color: white;
-      font-family: monospace;
-      font-size: 12px;
-      width: 300px;
-      max-height: 200px;
-      overflow-y: auto;
-      z-index: 9999;
-      display: none;
-    }
-
-    .debug-entry {
-      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-      padding: 5px 0;
-    }
-
-    .debug-error {
-      color: #ff5252;
-    }
-
-    .debug-success {
-      color: #4BB543;
-    }
-
-    .debug-toggle {
-      position: fixed;
-      bottom: 10px;
-      left: 10px;
-      background: rgba(255, 0, 0, 0.3);
-      border: none;
-      color: white;
-      padding: 8px 12px;
-      border-radius: 5px;
-      cursor: pointer;
-      z-index: 9999;
-    }
-
     .currency-container {
       display: flex;
       align-items: center;
@@ -238,35 +194,6 @@
 
   <!-- Load socket.io client -->
   <script src="/socket.io/socket.io.js"></script>
-
-  <!-- Debugging script -->
-  <script>
-    // Set up global error handler
-    window.addEventListener('error', function (e) {
-      console.error('Global error:', e.message);
-      addDebugEntry('ERROR: ' + e.message, true);
-    });
-
-    function addDebugEntry(message, isError = false) {
-      const entry = document.createElement('div');
-      entry.className = 'debug-entry' + (isError ? ' debug-error' : '');
-      entry.textContent = message;
-      debugPanel.appendChild(entry);
-      debugPanel.scrollTop = debugPanel.scrollHeight;
-    }
-
-    // Check if Socket.io is loaded
-    setTimeout(function () {
-      if (typeof io === 'undefined') {
-        console.error('Socket.io not loaded after 2 seconds');
-        addDebugEntry('Socket.io not loaded!', true);
-        alert('Socket.io failed to load. The game will not function correctly.');
-      } else {
-        console.log('Socket.io loaded successfully');
-        addDebugEntry('Socket.io loaded ✓');
-      }
-    }, 2000);
-  </script>
 
   <!-- Load our custom socket client -->
   <script src="socket-client.js"></script>
