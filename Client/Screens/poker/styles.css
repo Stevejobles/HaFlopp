@@ -25,7 +25,8 @@ body {
   align-items: center;
   justify-content: center;
   position: relative;
-  max-width: calc(100vw - 300px); /* Account for chat width */
+  width: calc(100vw - 300px); /* Account for chat width */
+  margin-left: calc(-300px / 2); /* Center content by offsetting chat width */
 }
 
 /* Button styles - Modern and minimalistic */
@@ -655,7 +656,8 @@ body {
   }
   
   .content {
-    max-width: calc(100vw - 250px);
+    width: calc(100vw - 250px);
+    margin-left: calc(-250px / 2); /* Center content by offsetting smaller chat width */
   }
 }
 
@@ -680,7 +682,8 @@ body {
   }
   
   .content {
-    max-width: 100%;
+    width: 100%;
+    margin-left: 0; /* Reset margin when chat is below content */
   }
   
   .player-actions {

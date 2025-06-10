@@ -39,54 +39,6 @@
       font-weight: bold;
       color: #ffffff;
     }
-
-    .add-money-btn {
-      background: linear-gradient(to bottom, #2ecc71, #27ae60);
-      color: white;
-      border: none;
-      border-radius: 5px;
-      padding: 5px 10px;
-      font-size: 14px;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .add-money-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    }
-
-    .add-money-btn:active {
-      transform: translateY(0);
-    }
-
-    .add-money-btn .material-symbols-outlined {
-      font-size: 18px;
-    }
-
-    .quick-add-success {
-      position: fixed;
-      top: 70px;
-      right: 20px;
-      background: rgba(46, 204, 113, 0.9);
-      color: white;
-      padding: 8px 15px;
-      border-radius: 5px;
-      font-size: 14px;
-      transition: all 0.3s;
-      opacity: 0;
-      transform: translateY(-10px);
-      z-index: 1000;
-      pointer-events: none;
-    }
-
-    .quick-add-success.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
   </style>
 </head>
 
@@ -106,9 +58,7 @@
   <!-- Quick Add Money functionality -->
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      const quickAddButton = document.getElementById('quick-add-money');
       const chipsAmountDisplay = document.getElementById('header-chips-amount');
-      const successNotification = document.getElementById('quick-add-success');
 
       // Function to update chips display (called on page load and after adding)
       function updateChipsDisplay() {
@@ -124,37 +74,6 @@
 
       // Initialize chips display on page load
       updateChipsDisplay();
-
-      // Add click event to quick add button
-      if (quickAddButton) {
-        quickAddButton.addEventListener('click', function() {
-          // Add $1000 chips
-          fetch('/api/user/add-chips', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ amount: 1000 })
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (data.chips) {
-              // Update display
-              chipsAmountDisplay.textContent = data.chips.toLocaleString();
-              
-              // Show success notification
-              successNotification.classList.add('show');
-              setTimeout(() => {
-                successNotification.classList.remove('show');
-              }, 2000);
-            }
-          })
-          .catch(error => {
-            console.error('Error adding chips:', error);
-            alert('Failed to add chips. Please try again.');
-          });
-        });
-      }
     });
 
     // Chat Visibility Fix JavaScript
@@ -289,23 +208,13 @@
   <script src="game.js"></script>
 </body>
 
-</html><div class="currency-container">
+</html>  <div class="currency-container">
     <div class="chips-display">
       <span class="material-symbols-outlined chips-icon">
         poker_chip
       </span>
       <span id="header-chips-amount" class="chips-amount">1000</span>
     </div>
-    <button id="quick-add-money" class="add-money-btn">
-      <span class="material-symbols-outlined">
-        add_circle
-      </span>
-      Add $1000
-    </button>
-  </div>
-
-  <div id="quick-add-success" class="quick-add-success">
-    +$1000 chips added!
   </div>
 
   <div class="main-container">
