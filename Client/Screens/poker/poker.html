@@ -97,7 +97,199 @@
     </span>
   </div>
 
-  <div class="currency-container">
+  <!-- Load socket.io client -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Load our custom socket client -->
+  <script src="socket-client.js"></script>
+
+  <!-- Quick Add Money functionality -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const quickAddButton = document.getElementById('quick-add-money');
+      const chipsAmountDisplay = document.getElementById('header-chips-amount');
+      const successNotification = document.getElementById('quick-add-success');
+
+      // Function to update chips display (called on page load and after adding)
+      function updateChipsDisplay() {
+        fetch('/api/user')
+          .then(response => response.json())
+          .then(data => {
+            if (data.user && data.user.chips) {
+              chipsAmountDisplay.textContent = data.user.chips.toLocaleString();
+            }
+          })
+          .catch(error => console.error('Error fetching user data:', error));
+      }
+
+      // Initialize chips display on page load
+      updateChipsDisplay();
+
+      // Add click event to quick add button
+      if (quickAddButton) {
+        quickAddButton.addEventListener('click', function() {
+          // Add $1000 chips
+          fetch('/api/user/add-chips', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ amount: 1000 })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.chips) {
+              // Update display
+              chipsAmountDisplay.textContent = data.chips.toLocaleString();
+              
+              // Show success notification
+              successNotification.classList.add('show');
+              setTimeout(() => {
+                successNotification.classList.remove('show');
+              }, 2000);
+            }
+          })
+          .catch(error => {
+            console.error('Error adding chips:', error);
+            alert('Failed to add chips. Please try again.');
+          });
+        });
+      }
+    });
+
+    // Chat Visibility Fix JavaScript
+    function ensureChatVisibility() {
+      console.log('Ensuring chat visibility...');
+      
+      // Get chat container
+      const chatContainer = document.querySelector('.chat-container');
+      const chatMessages = document.getElementById('chat-messages');
+      const chatInput = document.getElementById('chat-input');
+      const chatHeader = document.querySelector('.chat-header');
+      const chatInputContainer = document.querySelector('.chat-input-container');
+      
+      if (!chatContainer) {
+        console.error('Chat container not found!');
+        return false;
+      }
+      
+      // Force visibility on all chat elements
+      const chatElements = [chatContainer, chatMessages, chatInput, chatHeader, chatInputContainer];
+      
+      chatElements.forEach(element => {
+        if (element) {
+          // Remove any hiding classes
+          element.classList.remove('hidden', 'invisible', 'd-none');
+          
+          // Force display
+          element.style.display = element === chatContainer ? 'flex' : 
+                                element === chatMessages ? 'flex' :
+                                element === chatInputContainer ? 'flex' : 'block';
+          element.style.visibility = 'visible';
+          element.style.opacity = '1';
+          
+          // Ensure z-index
+          if (element === chatContainer) {
+            element.style.zIndex = '50';
+            element.style.position = 'relative';
+          }
+        }
+      });
+      
+      // Check if chat is actually visible
+      const rect = chatContainer.getBoundingClientRect();
+      const isVisible = rect.width > 0 && rect.height > 0;
+      
+      console.log('Chat container dimensions:', rect);
+      console.log('Chat is visible:', isVisible);
+      
+      if (!isVisible) {
+        console.warn('Chat container has no dimensions - applying emergency fix');
+        document.body.classList.add('force-chat-visible');
+      }
+      
+      return isVisible;
+    }
+
+    // Function to remove debug menu interference
+    function removeDebugMenuInterference() {
+      // Remove any debug menu elements that might be interfering
+      const debugElements = document.querySelectorAll('.debug-menu, .debug-overlay, .debug-panel, [class*="debug"]');
+      debugElements.forEach(element => {
+        if (element && element.style.zIndex > 50) {
+          element.style.display = 'none';
+          console.log('Removed interfering debug element:', element);
+        }
+      });
+    }
+
+    // Initialize chat visibility on DOM ready
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM loaded - checking chat visibility');
+      
+      // Wait a bit for all elements to load
+      setTimeout(() => {
+        removeDebugMenuInterference();
+        const isVisible = ensureChatVisibility();
+        
+        if (!isVisible) {
+          console.warn('Chat still not visible after initial fix - retrying...');
+          setTimeout(() => ensureChatVisibility(), 1000);
+        }
+      }, 100);
+    });
+
+    // Also check when window is resized
+    window.addEventListener('resize', function() {
+      setTimeout(() => ensureChatVisibility(), 100);
+    });
+
+    // Export function for manual debugging
+    window.debugChat = {
+      ensureVisibility: ensureChatVisibility,
+      removeDebugInterference: removeDebugMenuInterference,
+      
+      // Debug function to check chat status
+      checkStatus: function() {
+        const chatContainer = document.querySelector('.chat-container');
+        if (!chatContainer) {
+          console.log('❌ Chat container not found');
+          return;
+        }
+        
+        const styles = window.getComputedStyle(chatContainer);
+        const rect = chatContainer.getBoundingClientRect();
+        
+        console.log('🔍 Chat Debug Info:');
+        console.log('Display:', styles.display);
+        console.log('Visibility:', styles.visibility);
+        console.log('Opacity:', styles.opacity);
+        console.log('Z-index:', styles.zIndex);
+        console.log('Position:', styles.position);
+        console.log('Dimensions:', rect);
+        console.log('Is visible:', rect.width > 0 && rect.height > 0);
+      }
+    };
+
+    // Auto-fix chat visibility every 5 seconds if it becomes hidden
+    setInterval(() => {
+      const chatContainer = document.querySelector('.chat-container');
+      if (chatContainer) {
+        const rect = chatContainer.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) {
+          console.log('Chat became hidden - auto-fixing...');
+          ensureChatVisibility();
+        }
+      }
+    }, 5000);
+  </script>
+
+  <!-- Load main game scripts -->
+  <script src="main.js"></script>
+  <script src="game.js"></script>
+</body>
+
+</html><div class="currency-container">
     <div class="chips-display">
       <span class="material-symbols-outlined chips-icon">
         poker_chip
@@ -172,106 +364,20 @@
         <button id="all-in-btn" class="action-btn all-in-btn disabled" disabled>All In</button>
       </div>
     </div>
-  </div>
-  </div>
 
-  <!-- Chat system -->
-  <div class="chat-container">
-    <div class="chat-header">
-      <h3>Table Chat</h3>
+    <!-- Chat system - FIXED STRUCTURE -->
+    <div class="chat-container">
+      <div class="chat-header">
+        <h3>Table Chat</h3>
+      </div>
+      <div class="chat-messages" id="chat-messages">
+        <!-- Messages will be appended here -->
+      </div>
+      <div class="chat-input-container">
+        <input type="text" id="chat-input" placeholder="Type a message...">
+        <button id="send-message-btn">
+          <span class="material-symbols-outlined">send</span>
+        </button>
+      </div>
     </div>
-    <div class="chat-messages" id="chat-messages">
-      <!-- Messages will be appended here -->
-    </div>
-    <div class="chat-input-container">
-      <input type="text" id="chat-input" placeholder="Type a message...">
-      <button id="send-message-btn">
-        <span class="material-symbols-outlined">send</span>
-      </button>
-    </div>
   </div>
-  </div>
-
-  <!-- Load socket.io client -->
-  <script src="/socket.io/socket.io.js"></script>
-
-  <!-- Load our custom socket client -->
-  <script src="socket-client.js"></script>
-
-  <!-- Quick Add Money functionality -->
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      const quickAddButton = document.getElementById('quick-add-money');
-      const chipsAmountDisplay = document.getElementById('header-chips-amount');
-      const successNotification = document.getElementById('quick-add-success');
-
-      // Function to update chips display (called on page load and after adding)
-      function updateChipsDisplay() {
-        fetch('/api/user')
-          .then(response => response.json())
-          .then(data => {
-            if (data.user && data.user.chips) {
-              chipsAmountDisplay.textContent = data.user.chips.toLocaleString();
-            }
-          })
-          .catch(error => console.error('Error fetching user data:', error));
-      }
-
-      // Initialize chips display on page load
-      updateChipsDisplay();
-
-      // Add click handler for quick add button
-      if (quickAddButton) {
-        quickAddButton.addEventListener('click', function () {
-          // Disable button during request
-          quickAddButton.disabled = true;
-          quickAddButton.style.opacity = '0.7';
-
-          // Make API request to add money
-          fetch('/api/user/quick-add-money', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          })
-            .then(response => response.json())
-            .then(data => {
-              if (data.chips) {
-                // Update displayed amount
-                chipsAmountDisplay.textContent = data.chips.toLocaleString();
-
-                // Show success notification
-                successNotification.classList.add('show');
-                setTimeout(() => {
-                  successNotification.classList.remove('show');
-                }, 3000);
-
-                // If we're in a game, request a game state update to show new chips
-                if (window.pokerGame && typeof window.pokerGame.requestGameStateUpdate === 'function') {
-                  window.pokerGame.requestGameStateUpdate();
-                }
-              } else {
-                console.error('Failed to add chips:', data.message);
-                alert('Failed to add chips: ' + (data.message || 'Unknown error'));
-              }
-            })
-            .catch(error => {
-              console.error('Error adding chips:', error);
-              alert('Error adding chips. Please try again.');
-            })
-            .finally(() => {
-              // Re-enable button
-              quickAddButton.disabled = false;
-              quickAddButton.style.opacity = '1';
-            });
-        });
-      }
-    });
-  </script>
-
-  <!-- Load game logic -->
-  <script src="game.js"></script>
-
-</body>
-
-</html>
