@@ -203,12 +203,12 @@ class PokerGame {
         const data = await response.json();
         this.currentUser = data.user;
         this.log('Current user:', this.currentUser);
+        
+        // Connect socket with user ID
+        this.connectToGame();
       } else {
         throw new Error('Failed to get user info');
       }
-      
-      // Connect to the game
-      this.connectToGame();
       
     } catch (error) {
       console.error('[PokerGame] Initialization error:', error);
@@ -220,11 +220,22 @@ class PokerGame {
   connectToGame() {
     this.log('Connecting to game with lobby ID:', this.lobbyId);
     
-    if (this.socket && this.socket.isSocketConnected()) {
-      this.socket.joinGame(this.lobbyId);
+    if (this.socket) {
+      // Connect socket with user authentication
+      this.socket.connectWithAuth(this.currentUser.id);
       this.addSystemMessage('Connecting to game...');
+      
+      // Set up a timeout to check connection
+      setTimeout(() => {
+        if (this.socket.isSocketConnected()) {
+          this.socket.joinGame(this.lobbyId);
+        } else {
+          this.log('Socket connection timeout, retrying...');
+          this.tryReconnect();
+        }
+      }, 2000);
     } else {
-      this.log('Socket not connected, attempting to connect...');
+      this.log('Socket not available, attempting to reconnect...');
       this.tryReconnect();
     }
   }
@@ -232,15 +243,19 @@ class PokerGame {
   // Try to reconnect socket
   tryReconnect() {
     this.log('Attempting to reconnect socket...');
-    if (this.socket) {
-      this.socket.connect();
+    if (this.socket && this.currentUser) {
+      // Use connectWithAuth instead of connect
+      this.socket.connectWithAuth(this.currentUser.id);
+      
       setTimeout(() => {
         if (this.socket.isSocketConnected()) {
-          this.connectToGame();
+          this.socket.joinGame(this.lobbyId);
         } else {
           this.addSystemMessage('Connection failed. Please refresh the page.');
         }
       }, 2000);
+    } else {
+      this.addSystemMessage('Unable to reconnect. Please refresh the page.');
     }
   }
 
