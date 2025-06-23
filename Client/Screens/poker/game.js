@@ -76,6 +76,7 @@ class PokerGame {
     this.checkBtn = document.getElementById('check-btn');
     this.betBtn = document.getElementById('bet-btn');
     this.raiseBtn = document.getElementById('raise-btn');
+    //f
     this.betAmountInput = document.getElementById('bet-amount');
     this.betIncreaseBtn = document.getElementById('bet-increase');
     this.betDecreaseBtn = document.getElementById('bet-decrease');
