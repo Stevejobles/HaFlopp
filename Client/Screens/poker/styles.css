@@ -26,7 +26,7 @@ body {
   justify-content: center;
   position: relative;
   width: calc(100vw - 300px); /* Account for chat width */
-  margin-left: calc(-300px / 2); /* Center content by offsetting chat width */
+  margin-left: calc(-150px); /* Shift right to true center - half of chat width */
 }
 
 /* Button styles - Modern and minimalistic */
@@ -365,7 +365,7 @@ body {
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  margin-left: calc(-300px / 2); /* Offset for chat width to center in available space */
+  margin-left: calc(-150px); /* Shift right to align with true center */
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -658,11 +658,11 @@ body {
   
   .content {
     width: calc(100vw - 250px);
-    margin-left: calc(-250px / 2); /* Center content by offsetting smaller chat width */
+    margin-left: calc(-125px); /* Shift right for smaller chat width */
   }
 
   .player-actions {
-    margin-left: calc(-250px / 2); /* Adjust for smaller chat width */
+    margin-left: calc(-125px); /* Adjust for smaller chat width */
   }
 }
 
