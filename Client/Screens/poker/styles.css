@@ -406,6 +406,11 @@ body {
   color: white;
 }
 
+.call-btn {
+  background: linear-gradient(to bottom, #3498db, #2980b9);
+  color: white;
+}
+
 .bet-btn, .raise-btn {
   background: linear-gradient(to bottom, #f39c12, #e67e22);
   color: white;
