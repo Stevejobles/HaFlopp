@@ -74,9 +74,9 @@ class PokerGame {
     // Game control buttons
     this.foldBtn = document.getElementById('fold-btn');
     this.checkBtn = document.getElementById('check-btn');
+    this.callBtn = document.getElementById('call-btn');
     this.betBtn = document.getElementById('bet-btn');
     this.raiseBtn = document.getElementById('raise-btn');
-    //f
     this.betAmountInput = document.getElementById('bet-amount');
     this.betIncreaseBtn = document.getElementById('bet-increase');
     this.betDecreaseBtn = document.getElementById('bet-decrease');
@@ -136,6 +136,7 @@ class PokerGame {
       { name: 'sendMessageBtn', el: this.sendMessageBtn },
       { name: 'foldBtn', el: this.foldBtn },
       { name: 'checkBtn', el: this.checkBtn },
+      { name: 'callBtn', el: this.callBtn },    
       { name: 'betBtn', el: this.betBtn },
       { name: 'raiseBtn', el: this.raiseBtn },
       { name: 'betAmountInput', el: this.betAmountInput },
@@ -180,7 +181,8 @@ class PokerGame {
     // Action buttons
     if (this.foldBtn) this.foldBtn.addEventListener('click', () => this.handleFold());
     if (this.checkBtn) this.checkBtn.addEventListener('click', () => this.handleCheck());
-    if (this.betBtn) this.betBtn.addEventListener('click', () => this.handleBet());
+    if (this.callBtn) this.callBtn.addEventListener('click', () => this.handleCall());
+    if (this.betBtn) this.betBtn.addEventListener('click', () => this.handleCheck());
     if (this.raiseBtn) this.raiseBtn.addEventListener('click', () => this.handleRaise());
     if (this.allInBtn) this.allInBtn.addEventListener('click', () => this.handleAllIn());
     
@@ -655,14 +657,13 @@ class PokerGame {
           this.enableButton(this.foldBtn);
           break;
         case 'check':
-          this.enableButton(this.checkBtn);
+          this.enableButton(this.checkBtn);  
           break;
         case 'call':
-          this.enableButton(this.checkBtn);
-          if (this.checkBtn) this.checkBtn.textContent = 'Call';
+          this.enableButton(this.callBtn);   
           break;
         case 'bet':
-          this.enableButton(this.betBtn);
+          this.enableButton(this.raiseBtn);  
           this.enableButton(this.betAmountInput);
           this.enableButton(this.betIncreaseBtn);
           this.enableButton(this.betDecreaseBtn);
@@ -690,9 +691,6 @@ class PokerGame {
     this.disableButton(this.betAmountInput);
     this.disableButton(this.betIncreaseBtn);
     this.disableButton(this.betDecreaseBtn);
-    
-    // Reset check button text
-    if (this.checkBtn) this.checkBtn.textContent = 'Check';
   }
 
   // Enable a button
@@ -718,20 +716,30 @@ class PokerGame {
   }
 
   handleCheck() {
-    this.log('Check/Call action');
+    this.log('Check action - pure check');
     this.sendAction('check');
+  }
+  
+  handleCall() {
+    this.log('Call action - calling current bet');
+    this.sendAction('call');
   }
 
   handleBet() {
-    this.log('Bet action');
-    const amount = parseInt(this.betAmountInput.value, 10);
-    this.sendAction('bet', amount);
+    this.log('Bet action - now same as check');
+    this.sendAction('check');
   }
 
   handleRaise() {
-    this.log('Raise action');
-    const amount = parseInt(this.betAmountInput.value, 10);
-    this.sendAction('raise', amount);
+    this.log('Raise/Bet action');
+    const amount = this.betAmountInput ? parseInt(this.betAmountInput.value, 10) : 10;
+
+    // Determine if this should be a bet or raise based on game state
+    if (this.gameState && this.gameState.currentBet === 0) {
+      this.sendAction('bet', amount);
+    } else {
+      this.sendAction('raise', amount);
+    }
   }
 
   handleAllIn() {

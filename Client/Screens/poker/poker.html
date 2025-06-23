@@ -18,7 +18,8 @@
       gap: 10px;
       position: fixed;
       top: 20px;
-      left: 80px; /* Move further right to avoid back button overlap */
+      left: 80px;
+      /* Move further right to avoid back button overlap */
       background: rgba(0, 0, 0, 0.6);
       padding: 10px 15px;
       border-radius: 10px;
@@ -79,34 +80,34 @@
     // Chat Visibility Fix JavaScript
     function ensureChatVisibility() {
       console.log('Ensuring chat visibility...');
-      
+
       // Get chat container
       const chatContainer = document.querySelector('.chat-container');
       const chatMessages = document.getElementById('chat-messages');
       const chatInput = document.getElementById('chat-input');
       const chatHeader = document.querySelector('.chat-header');
       const chatInputContainer = document.querySelector('.chat-input-container');
-      
+
       if (!chatContainer) {
         console.error('Chat container not found!');
         return false;
       }
-      
+
       // Force visibility on all chat elements
       const chatElements = [chatContainer, chatMessages, chatInput, chatHeader, chatInputContainer];
-      
+
       chatElements.forEach(element => {
         if (element) {
           // Remove any hiding classes
           element.classList.remove('hidden', 'invisible', 'd-none');
-          
+
           // Force display
-          element.style.display = element === chatContainer ? 'flex' : 
-                                element === chatMessages ? 'flex' :
-                                element === chatInputContainer ? 'flex' : 'block';
+          element.style.display = element === chatContainer ? 'flex' :
+            element === chatMessages ? 'flex' :
+              element === chatInputContainer ? 'flex' : 'block';
           element.style.visibility = 'visible';
           element.style.opacity = '1';
-          
+
           // Ensure z-index
           if (element === chatContainer) {
             element.style.zIndex = '50';
@@ -114,19 +115,19 @@
           }
         }
       });
-      
+
       // Check if chat is actually visible
       const rect = chatContainer.getBoundingClientRect();
       const isVisible = rect.width > 0 && rect.height > 0;
-      
+
       console.log('Chat container dimensions:', rect);
       console.log('Chat is visible:', isVisible);
-      
+
       if (!isVisible) {
         console.warn('Chat container has no dimensions - applying emergency fix');
         document.body.classList.add('force-chat-visible');
       }
-      
+
       return isVisible;
     }
 
@@ -143,14 +144,14 @@
     }
 
     // Initialize chat visibility on DOM ready
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       console.log('DOM loaded - checking chat visibility');
-      
+
       // Wait a bit for all elements to load
       setTimeout(() => {
         removeDebugMenuInterference();
         const isVisible = ensureChatVisibility();
-        
+
         if (!isVisible) {
           console.warn('Chat still not visible after initial fix - retrying...');
           setTimeout(() => ensureChatVisibility(), 1000);
@@ -159,7 +160,7 @@
     });
 
     // Also check when window is resized
-    window.addEventListener('resize', function() {
+    window.addEventListener('resize', function () {
       setTimeout(() => ensureChatVisibility(), 100);
     });
 
@@ -167,18 +168,18 @@
     window.debugChat = {
       ensureVisibility: ensureChatVisibility,
       removeDebugInterference: removeDebugMenuInterference,
-      
+
       // Debug function to check chat status
-      checkStatus: function() {
+      checkStatus: function () {
         const chatContainer = document.querySelector('.chat-container');
         if (!chatContainer) {
           console.log('❌ Chat container not found');
           return;
         }
-        
+
         const styles = window.getComputedStyle(chatContainer);
         const rect = chatContainer.getBoundingClientRect();
-        
+
         console.log('🔍 Chat Debug Info:');
         console.log('Display:', styles.display);
         console.log('Visibility:', styles.visibility);
@@ -208,85 +209,87 @@
   <script src="game.js"></script>
 </body>
 
-</html>  <div class="currency-container">
-    <div class="chips-display">
-      <span class="material-symbols-outlined chips-icon">
+</html>
+<div class="currency-container">
+  <div class="chips-display">
+    <span class="material-symbols-outlined chips-icon">
+      poker_chip
+    </span>
+    <span id="header-chips-amount" class="chips-amount">1000</span>
+  </div>
+</div>
+
+<div class="main-container">
+  <div class="content">
+    <!-- Pot display -->
+    <div class="pot">
+      <span class="pot-number">0</span>
+      <span class="material-symbols-outlined" style="font-size: 24px; opacity: .8;">
         poker_chip
       </span>
-      <span id="header-chips-amount" class="chips-amount">1000</span>
+    </div>
+
+    <!-- Game status display -->
+    <div class="game-status">Waiting for players...</div>
+
+    <!-- Poker table -->
+    <div class="table">
+
+      <div class="users"></div>
+
+      <!-- Community cards container -->
+      <div class="table-cards">
+        <div class="table-card hidden" data-value="?" data-suit="?"></div>
+        <div class="table-card hidden" data-value="?" data-suit="?"></div>
+        <div class="table-card hidden" data-value="?" data-suit="?"></div>
+        <div class="table-card hidden" data-value="?" data-suit="?"></div>
+        <div class="table-card hidden" data-value="?" data-suit="?"></div>
+      </div>
+
+      <div class="other-users">
+        <div class="player-position position-0" id="position-0"></div>
+        <div class="player-position position-1" id="position-1"></div>
+        <div class="player-position position-2" id="position-2"></div>
+        <div class="player-position position-3" id="position-3"></div>
+        <div class="player-position position-4" id="position-4"></div>
+      </div>
+    </div>
+
+    <!-- Player action bar -->
+    <div class="player-actions">
+      <div class="action-buttons">
+        <button class="action-btn fold-btn" id="fold-btn" disabled>Fold</button>
+        <button class="action-btn check-btn" id="check-btn" disabled>Check</button>
+        <button class="action-btn call-btn" id="call-btn" disabled>Call</button> 
+        <button class="action-btn bet-btn" id="bet-btn" disabled>Check</button> 
+        <button class="action-btn raise-btn" id="raise-btn" disabled>Bet/Raise</button>
+        <button class="action-btn all-in-btn" id="all-in-btn" disabled>All In</button>
+      </div>
+      <button id="all-in-btn" class="action-btn all-in-btn disabled" disabled>All In</button>
     </div>
   </div>
 
-  <div class="main-container">
-    <div class="content">
-      <!-- Pot display -->
-      <div class="pot">
-        <span class="pot-number">0</span>
-        <span class="material-symbols-outlined" style="font-size: 24px; opacity: .8;">
-          poker_chip
-        </span>
-      </div>
-
-      <!-- Game status display -->
-      <div class="game-status">Waiting for players...</div>
-
-      <!-- Poker table -->
-      <div class="table">
-
-        <div class="users"></div>
-
-        <!-- Community cards container -->
-        <div class="table-cards">
-          <div class="table-card hidden" data-value="?" data-suit="?"></div>
-          <div class="table-card hidden" data-value="?" data-suit="?"></div>
-          <div class="table-card hidden" data-value="?" data-suit="?"></div>
-          <div class="table-card hidden" data-value="?" data-suit="?"></div>
-          <div class="table-card hidden" data-value="?" data-suit="?"></div>
-        </div>
-
-        <div class="other-users">
-          <div class="player-position position-0" id="position-0"></div>
-          <div class="player-position position-1" id="position-1"></div>
-          <div class="player-position position-2" id="position-2"></div>
-          <div class="player-position position-3" id="position-3"></div>
-          <div class="player-position position-4" id="position-4"></div>
-        </div>
-      </div>
-
-      <!-- Player action bar -->
-      <div class="player-actions">
-        <div class="action-buttons">
-          <button id="fold-btn" class="action-btn fold-btn disabled" disabled>Fold</button>
-          <button id="check-btn" class="action-btn check-btn disabled" disabled>Check</button>
-          <div class="bet-controls">
-            <div class="bet-amount-container">
-              <input type="number" id="bet-amount" min="10" max="1000" value="10" disabled>
-              <div class="bet-amount-controls">
-                <button id="bet-increase" class="bet-control-btn">+</button>
-                <button id="bet-decrease" class="bet-control-btn">-</button>
-              </div>
-            </div>
-            <button id="bet-btn" class="action-btn bet-btn disabled" disabled>Bet</button>
-            <button id="raise-btn" class="action-btn raise-btn disabled" disabled>Raise</button>
-          </div>
-        </div>
-        <button id="all-in-btn" class="action-btn all-in-btn disabled" disabled>All In</button>
-      </div>
-    </div>
-
-    <!-- Chat system - FIXED STRUCTURE -->
-    <div class="chat-container">
-      <div class="chat-header">
-        <h3>Table Chat</h3>
-      </div>
-      <div class="chat-messages" id="chat-messages">
-        <!-- Messages will be appended here -->
-      </div>
-      <div class="chat-input-container">
-        <input type="text" id="chat-input" placeholder="Type a message...">
-        <button id="send-message-btn">
-          <span class="material-symbols-outlined">send</span>
-        </button>
-      </div>
+  <div class="bet-controls">
+    <div class="bet-amount-container">
+      <button class="bet-control-btn" id="bet-decrease">−</button>
+      <input type="number" id="bet-amount" value="10" min="1">
+      <button class="bet-control-btn" id="bet-increase">+</button>
     </div>
   </div>
+
+  <!-- Chat system - FIXED STRUCTURE -->
+  <div class="chat-container">
+    <div class="chat-header">
+      <h3>Table Chat</h3>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      <!-- Messages will be appended here -->
+    </div>
+    <div class="chat-input-container">
+      <input type="text" id="chat-input" placeholder="Type a message...">
+      <button id="send-message-btn">
+        <span class="material-symbols-outlined">send</span>
+      </button>
+    </div>
+  </div>
+</div>
