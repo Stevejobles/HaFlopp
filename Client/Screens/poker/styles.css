@@ -363,7 +363,7 @@ body {
 .player-actions {
   position: fixed;
   bottom: 20px;
-  left: 50%;
+  left: 47%;
   transform: translateX(-50%);
   margin-left: calc(-150px); /* Shift right to align with true center */
   display: flex;
@@ -446,7 +446,7 @@ body {
 }
 
 #bet-amount {
-  width: 80px;
+  width: 50;
   padding: 12px;
   border: none;
   background: transparent;
